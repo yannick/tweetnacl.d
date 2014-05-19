@@ -774,6 +774,7 @@ private bool unpackneg (ref long[16][4] r, const(ubyte)[] p) {
 }
 
 ubyte[] crypto_sign_open (const(ubyte)[] sm, const(ubyte)[] pk) {
+  assert(pk.length >= crypto_sign_PUBLICKEYBYTES);
   ubyte[32] t;
   ubyte[64] h;
   long[16][4] p, q;
@@ -803,7 +804,7 @@ ubyte[] crypto_sign_open (const(ubyte)[] sm, const(ubyte)[] pk) {
 
   for (auto i = 0; i < n; ++i)  m[i] = sm[i + 64];
 
-  return m;
+  return m[0..n]; // remove signature
 }
 
 
@@ -881,19 +882,13 @@ unittest {
   writeln("crypto_sign");
   smres = crypto_sign(m, sk);
   assert(smres.length == sm.length);
-  //assert(hashToString(smres) == hashToString(sm));
   assert(smres == sm);
 
   writeln("crypto_sign_open");
   t = crypto_sign_open(smres, pk);
-  //writeln(hashToString(t));
   assert(t !is null);
-  assert(t.length == smres.length);
-  assert(t[0..m.length] == m);
-  //???
-  //writeln(hashToString(t[m.length..$]));
-  //writeln(hashToString(sm[m.length..$]));
-  //assert(t[m.length..$] == sm[m.length..$]);
+  assert(t.length == m.length);
+  assert(t == m);
 
 
   // based on the code by Adam D. Ruppe

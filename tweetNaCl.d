@@ -106,12 +106,12 @@ private int vn (const(ubyte)[] x, const(ubyte)[] y, int n) {
   return (1&((d-1)>>8))-1;
 }
 
-int crypto_verify_16 (const(ubyte)[] x, const(ubyte)[] y) {
-  return vn(x, y, 16);
+bool crypto_verify_16 (const(ubyte)[] x, const(ubyte)[] y) {
+  return (vn(x, y, 16) == 0);
 }
 
-int crypto_verify_32 (const(ubyte)[] x, const(ubyte)[] y) {
-  return vn(x, y, 32);
+bool crypto_verify_32 (const(ubyte)[] x, const(ubyte)[] y) {
+  return (vn(x, y, 32) == 0);
 }
 
 
@@ -154,24 +154,22 @@ private void core (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(uby
     for (auto i = 0; i < 16; ++i)  st32(out_[4*i..$], x[i] + y[i]);
 }
 
-int crypto_core_salsa20 (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c) {
+void crypto_core_salsa20 (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c) {
   core(out_, in_, k, c, 0);
-  return 0;
 }
 
-int crypto_core_hsalsa20 (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c) {
+void crypto_core_hsalsa20 (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c) {
   core(out_, in_, k, c, 1);
-  return 0;
 }
 
 private static immutable ubyte[16] sigma = ['e','x','p','a','n','d',' ','3','2','-','b','y','t','e',' ','k'];
 
-int crypto_stream_salsa20_xor(ubyte[] c, const(ubyte)[] m, ulong b, const(ubyte)[] n, const(ubyte)[] k) {
+void crypto_stream_salsa20_xor (ubyte[] c, const(ubyte)[] m, ulong b, const(ubyte)[] n, const(ubyte)[] k) {
   ubyte[16] z;
   ubyte[64] x;
   uint u;
   uint cpos = 0, mpos = 0;
-  if (!b) return 0;
+  if (!b) return;
   for (auto i = 0; i < 16; ++i)  z[i] = 0; //FIXME
   for (auto i = 0; i < 8; ++i)  z[i] = n[i];
   while (b >= 64) {
@@ -191,30 +189,25 @@ int crypto_stream_salsa20_xor(ubyte[] c, const(ubyte)[] m, ulong b, const(ubyte)
     crypto_core_salsa20(x, z, k, sigma);
     for (auto i = 0; i < b; ++i)  c[cpos+i] = (m !is null ? m[mpos+i] : 0) ^ x[i];
   }
-  return 0;
 }
 
-int crypto_stream_salsa20(ubyte[] c, ulong d, const(ubyte)[] n, const(ubyte)[] k)
-{
-  return crypto_stream_salsa20_xor(c, null, d, n, k);
+void crypto_stream_salsa20 (ubyte[] c, ulong d, const(ubyte)[] n, const(ubyte)[] k) {
+  crypto_stream_salsa20_xor(c, null, d, n, k);
 }
 
-int crypto_stream(ubyte[] c, ulong d, const(ubyte)[] n, const(ubyte)[] k)
-{
+void crypto_stream (ubyte[] c, ulong d, const(ubyte)[] n, const(ubyte)[] k) {
   ubyte[32] s;
   crypto_core_hsalsa20(s, n, k, sigma);
-  return crypto_stream_salsa20(c, d, n[16..$], s);
+  crypto_stream_salsa20(c, d, n[16..$], s);
 }
 
-int crypto_stream_xor(ubyte[] c, const(ubyte)[] m, ulong d, const(ubyte)[] n, const(ubyte)[] k)
-{
+void crypto_stream_xor (ubyte[] c, const(ubyte)[] m, ulong d, const(ubyte)[] n, const(ubyte)[] k) {
   ubyte s[32];
   crypto_core_hsalsa20(s, n, k, sigma);
-  return crypto_stream_salsa20_xor(c, m, d, n[16..$], s);
+  crypto_stream_salsa20_xor(c, m, d, n[16..$], s);
 }
 
-private void add1305(uint[] h, const(uint)[] c)
-{
+private void add1305 (uint[] h, const(uint)[] c) {
   uint u = 0;
   for (auto j = 0; j < 17; ++j)  {
     u += h[j] + c[j];
@@ -225,8 +218,7 @@ private void add1305(uint[] h, const(uint)[] c)
 
 private static immutable uint[17] minusp = [5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,252];
 
-int crypto_onetimeauth(ubyte[] out_, const(ubyte)[] m, ulong n, const(ubyte)[] k)
-{
+void crypto_onetimeauth (ubyte[] out_, const(ubyte)[] m, ulong n, const(ubyte)[] k) {
   uint s, i, j, u;
   uint[17] x, r, h, c, g;
   uint mpos = 0;
@@ -278,34 +270,30 @@ int crypto_onetimeauth(ubyte[] out_, const(ubyte)[] m, ulong n, const(ubyte)[] k
   c[16] = 0;
   add1305(h, c);
   for (j = 0; j < 16; ++j)  out_[j] = cast(ubyte)(h[j]&0xff);
-  return 0;
 }
 
-int crypto_onetimeauth_verify(const(ubyte)[] h, const(ubyte)[] m, ulong n, const(ubyte)[] k)
-{
+bool crypto_onetimeauth_verify (const(ubyte)[] h, const(ubyte)[] m, ulong n, const(ubyte)[] k) {
   ubyte x[16];
   crypto_onetimeauth(x, m, n, k);
   return crypto_verify_16(h, x);
 }
 
-int crypto_secretbox(ubyte[] c, const(ubyte)[] m, ulong d, const(ubyte)[] n, const(ubyte)[] k)
-{
-  if (d < 32) return -1;
+bool crypto_secretbox (ubyte[] c, const(ubyte)[] m, ulong d, const(ubyte)[] n, const(ubyte)[] k) {
+  if (d < 32) return false;
   crypto_stream_xor(c, m, d, n, k);
   crypto_onetimeauth(c[16..$], c[32..$], d - 32, c);
   for (auto i = 0; i < 16; ++i)  c[i] = 0;
-  return 0;
+  return true;
 }
 
-int crypto_secretbox_open(ubyte[] m, const(ubyte)[] c, ulong d, const(ubyte)[] n, const(ubyte)[] k)
-{
+bool crypto_secretbox_open (ubyte[] m, const(ubyte)[] c, ulong d, const(ubyte)[] n, const(ubyte)[] k) {
   ubyte x[32];
-  if (d < 32) return -1;
+  if (d < 32) return false;
   crypto_stream(x, 32, n, k);
-  if (crypto_onetimeauth_verify(c[16..$], c[32..$], d - 32, x) != 0) return -1;
+  if (!crypto_onetimeauth_verify(c[16..$], c[32..$], d - 32, x)) return false;
   crypto_stream_xor(m, c, d, n, k);
   for (auto i = 0; i < 32; ++i)  m[i] = 0;
-  return 0;
+  return true;
 }
 
 private void set25519(long[] r, const(long)[] a)
@@ -359,8 +347,7 @@ private void pack25519(ubyte[] o, const(long)[] n)
   }
 }
 
-private int neq25519(const(long)[] a, const(long)[] b)
-{
+private bool neq25519 (const(long)[] a, const(long)[] b) {
   ubyte[32] c, d;
   pack25519(c, a);
   pack25519(d, b);
@@ -492,19 +479,19 @@ int crypto_box_keypair(ubyte[] y, ubyte[] x)
   return crypto_scalarmult_base(y, x);
 }
 
-int crypto_box_beforenm(ubyte[] k, const(ubyte)[] y, const(ubyte)[] x)
+void crypto_box_beforenm(ubyte[] k, const(ubyte)[] y, const(ubyte)[] x)
 {
   ubyte s[32];
   crypto_scalarmult(s, x, y);
-  return crypto_core_hsalsa20(k, _0, s, sigma);
+  crypto_core_hsalsa20(k, _0, s, sigma);
 }
 
-int crypto_box_afternm(ubyte[] c, const(ubyte)[] m, ulong d, const(ubyte)[] n, const(ubyte)[] k)
+bool crypto_box_afternm(ubyte[] c, const(ubyte)[] m, ulong d, const(ubyte)[] n, const(ubyte)[] k)
 {
   return crypto_secretbox(c, m, d, n, k);
 }
 
-int crypto_box_open_afternm(ubyte[] m, const(ubyte)[] c, ulong d, const(ubyte)[] n, const(ubyte)[] k)
+bool crypto_box_open_afternm(ubyte[] m, const(ubyte)[] c, ulong d, const(ubyte)[] n, const(ubyte)[] k)
 {
   return crypto_secretbox_open(m, c, d, n, k);
 }
@@ -516,7 +503,7 @@ int crypto_box(ubyte[] c, const(ubyte)[] m, ulong d, const(ubyte)[] n, const(uby
   return crypto_box_afternm(c, m, d, n, k);
 }
 
-int crypto_box_open(ubyte[] m, const(ubyte)[] c, ulong d, const(ubyte)[] n, const(ubyte)[] y, const(ubyte)[] x)
+bool crypto_box_open(ubyte[] m, const(ubyte)[] c, ulong d, const(ubyte)[] n, const(ubyte)[] y, const(ubyte)[] x)
 {
   ubyte k[32];
   crypto_box_beforenm(k, y, x);
@@ -806,11 +793,11 @@ private int unpackneg(long[16][4] r, const(ubyte)[] p)
 
   S(chk, r[0]);
   M(chk, chk, den);
-  if (neq25519(chk, num)) M(r[0], r[0], I);
+  if (!neq25519(chk, num)) M(r[0], r[0], I);
 
   S(chk, r[0]);
   M(chk, chk, den);
-  if (neq25519(chk, num)) return -1;
+  if (!neq25519(chk, num)) return -1;
 
   if (par25519(r[0]) == (p[31]>>7)) Z(r[0], gf0, r[0]);
 
@@ -841,7 +828,7 @@ int crypto_sign_open(ubyte[] m, ulong[] mlen, const(ubyte)[] sm, ulong n, const(
   pack(t, p);
 
   n -= 64;
-  if (crypto_verify_32(sm, t)) {
+  if (!crypto_verify_32(sm, t)) {
     for (auto i = 0; i < n; ++i)  m[i] = 0;
     return -1;
   }
@@ -1231,7 +1218,7 @@ unittest {
     ,0x5e,0x07,0x05
     ];
 
-    assert(/*crypto_box_curve25519xsalsa20poly1305_open*/crypto_box_open(m,c,163,nonce,alicepk,bobsk) == 0);
+    assert(/*crypto_box_curve25519xsalsa20poly1305_open*/crypto_box_open(m,c,163,nonce,alicepk,bobsk));
     for (auto f = 32; f < 163; ++f) assert(m[f] == res[f-32]);
   }
   box2();
@@ -1250,7 +1237,7 @@ unittest {
       randombytes(n,crypto_box_NONCEBYTES);
       randombytes(m[crypto_box_ZEROBYTES..$],mlen);
       crypto_box(c,m,mlen + crypto_box_ZEROBYTES,n,bobpk,alicesk);
-      assert(crypto_box_open(m2,c,mlen + crypto_box_ZEROBYTES,n,alicepk,bobsk) == 0);
+      assert(crypto_box_open(m2,c,mlen + crypto_box_ZEROBYTES,n,alicepk,bobsk));
       for (auto i = 0;i < mlen + crypto_box_ZEROBYTES;++i) assert(m2[i] == m[i]);
     }
   }
@@ -1270,18 +1257,15 @@ unittest {
       randombytes(n,crypto_box_NONCEBYTES);
       randombytes(m[crypto_box_ZEROBYTES..$],mlen);
       crypto_box(c,m,mlen + crypto_box_ZEROBYTES,n,bobpk,alicesk);
-      //assert(crypto_box_open(m2,c,mlen + crypto_box_ZEROBYTES,n,alicepk,bobsk) == 0);
-      //for (auto i = 0;i < mlen + crypto_box_ZEROBYTES;++i) assert(m2[i] == m[i]);
       int caught = 0;
       while (caught < 10) {
         c[uniform(0, mlen + crypto_box_ZEROBYTES)] = cast(ubyte)uniform(0, 256);
-        if (crypto_box_open(m2,c,mlen + crypto_box_ZEROBYTES,n,alicepk,bobsk) == 0) {
+        if (crypto_box_open(m2,c,mlen + crypto_box_ZEROBYTES,n,alicepk,bobsk)) {
           for (auto i = 0;i < mlen + crypto_box_ZEROBYTES;++i) assert(m2[i] == m[i]);
         } else {
           ++caught;
         }
       }
-      //if (caught) writefln("mlen=%s; caught=%s", mlen, caught);
       assert(caught == 10);
     }
   }
@@ -1598,7 +1582,7 @@ unittest {
     ,0x2a,0x7d,0xfb,0x4b,0x3d,0x33,0x05,0xd9
     ] ;
 
-    assert(/*crypto_onetimeauth_poly1305_verify*/crypto_onetimeauth_verify(a,c,131,rs) == 0);
+    assert(/*crypto_onetimeauth_poly1305_verify*/crypto_onetimeauth_verify(a,c,131,rs));
   }
   onetimeauth2();
 
@@ -1613,12 +1597,12 @@ unittest {
       randombytes(key, key.length);
       randombytes(c, clen);
       crypto_onetimeauth(a,c,clen,key);
-      assert(crypto_onetimeauth_verify(a,c,clen,key) == 0);
+      assert(crypto_onetimeauth_verify(a,c,clen,key));
       if (clen > 0) {
         c[uniform(0, clen)] += 1 + (uniform(0, 255));
-        assert(crypto_onetimeauth_verify(a,c,clen,key) != 0);
+        assert(!crypto_onetimeauth_verify(a,c,clen,key));
         a[uniform(0, a.length)] += 1 + (uniform(0, 255));
-        assert(crypto_onetimeauth_verify(a,c,clen,key) != 0);
+        assert(!crypto_onetimeauth_verify(a,c,clen,key));
       }
     }
   }
@@ -1860,7 +1844,7 @@ unittest {
 
     ubyte m[163];
 
-    assert(crypto_secretbox_open(m,c,163,nonce,firstkey) == 0);
+    assert(crypto_secretbox_open(m,c,163,nonce,firstkey));
     for (auto i = 32;i < 163;++i) assert(m[i] == res[i-32]);
   }
   secretbox2();
@@ -1875,7 +1859,7 @@ unittest {
       randombytes(n,crypto_secretbox_NONCEBYTES);
       randombytes(m[crypto_secretbox_ZEROBYTES..$],mlen);
       crypto_secretbox(c,m,mlen + crypto_secretbox_ZEROBYTES,n,k);
-      assert(crypto_secretbox_open(m2,c,mlen + crypto_secretbox_ZEROBYTES,n,k) == 0);
+      assert(crypto_secretbox_open(m2,c,mlen + crypto_secretbox_ZEROBYTES,n,k));
       for (auto i = 0;i < mlen + crypto_secretbox_ZEROBYTES;++i) assert(m2[i] == m[i]);
     }
   }
@@ -1894,7 +1878,7 @@ unittest {
       auto caught = 0;
       while (caught < 10) {
         c[uniform(0, mlen + crypto_secretbox_ZEROBYTES)] = cast(ubyte)uniform(0, 256);
-        if (crypto_secretbox_open(m2,c,mlen + crypto_secretbox_ZEROBYTES,n,k) == 0) {
+        if (crypto_secretbox_open(m2,c,mlen + crypto_secretbox_ZEROBYTES,n,k)) {
           for (auto i = 0;i < mlen + crypto_secretbox_ZEROBYTES;++i) assert(m2[i] == m[i]);
         }
         ++caught;

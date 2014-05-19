@@ -56,8 +56,8 @@ enum {
   crypto_stream_salsa20_KEYBYTES = 32,
   crypto_stream_salsa20_NONCEBYTES = 8,
 
-  crypto_verify_16_tweet_BYTES = 16,
-  crypto_verify_32_tweet_BYTES = 32,
+  crypto_verify_16_BYTES = 16,
+  crypto_verify_32_BYTES = 32,
 }
 
 

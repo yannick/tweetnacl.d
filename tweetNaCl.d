@@ -13,8 +13,6 @@ module tweetNaCl;
 
 
 enum {
-  crypto_hash_BYTES = 64,
-
   crypto_auth_BYTES = 32,
   crypto_auth_KEYBYTES = 32,
 
@@ -34,6 +32,8 @@ enum {
   crypto_core_hsalsa20_INPUTBYTES = 16,
   crypto_core_hsalsa20_KEYBYTES = 32,
   crypto_core_hsalsa20_CONSTBYTES = 16,
+
+  crypto_hash_BYTES = 64,
 
   crypto_onetimeauth_BYTES = 16,
   crypto_onetimeauth_KEYBYTES = 32,

@@ -850,11 +850,16 @@ unittest {
     }
   }
   +/
+  /+
   static void rnd (ubyte[] dest, size_t len) {
     for (size_t f = 0; f < len; ++f) dest[f] = cast(ubyte)uniform(0, 256);
   }
   randombytes = &rnd;
+  +/
 
+  randombytes = (ubyte[] dest, size_t len) {
+    for (size_t f = 0; f < len; ++f) dest[f] = cast(ubyte)uniform(0, 256);
+  };
 
   void dumpArray(T) (T[] arr) @trusted {
     writefln("============================= (%s)", arr.length);

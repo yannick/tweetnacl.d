@@ -290,12 +290,9 @@ bool crypto_secretbox (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyt
 
 bool crypto_secretbox_open (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, const(ubyte)[] k) {
   ubyte x[32];
-  const(ubyte)[] z;
   if (m is null || m.length < 32) return false;
   crypto_stream(x, n, k);
-  z = c[32..$];
-  if (z.length < m.length-32) z = []; else z = z[0..m.length-32];
-  if (!crypto_onetimeauth_verify(c[16..$], /*c[32..$]*/z, x)) return false;
+  if (!crypto_onetimeauth_verify(c[16..$], c[32../*$*/32+(m.length-32)], x)) return false;
   crypto_stream_xor(m, c, n, k);
   for (auto i = 0; i < 32; ++i) m[i] = 0;
   return true;
@@ -529,7 +526,6 @@ void crypto_hashblocks (ubyte[] x, const(ubyte)[] m, ulong n) {
   ulong[8] z, b, a;
   ulong[16] w;
   ulong t;
-  //int i, j;
   uint mpos = 0;
 
   for (auto i = 0; i < 8; ++i)  z[i] = a[i] = dl64(x[8*i..$]);
@@ -570,9 +566,10 @@ private static immutable ubyte[64] iv = [
   0x5b, 0xe0, 0xcd, 0x19, 0x13, 0x7e, 0x21, 0x79
 ];
 
-void crypto_hash (ubyte[] out_, const(ubyte)[] m, ulong n) {
+void crypto_hash (ubyte[] out_, const(ubyte)[] m) {
   ubyte[64] h;
   ubyte[256] x;
+  size_t n = m.length;
   ulong b = n;
   uint mpos = 0;
 
@@ -660,7 +657,7 @@ void crypto_sign_keypair (ubyte[] pk, ubyte[] sk) {
   long[16][4] p;
 
   randombytes(sk, 32);
-  crypto_hash(d, sk, 32);
+  crypto_hash(d, sk[0..32]);
   d[0] &= 248;
   d[31] &= 127;
   d[31] |= 64;
@@ -706,12 +703,13 @@ private void reduce (ubyte[] r) {
   modL(r, x);
 }
 
-void crypto_sign (ubyte[] sm, ulong[] smlen, const(ubyte)[] m, ulong n, const(ubyte)[] sk) {
+void crypto_sign (ubyte[] sm, ulong[] smlen, const(ubyte)[] m, const(ubyte)[] sk) {
   ubyte[64] d, h, r;
   ulong[64] x;
   long[16][4] p;
+  size_t n = m.length;
 
-  crypto_hash(d, sk, 32);
+  crypto_hash(d, sk[0..32]);
   d[0] &= 248;
   d[31] &= 127;
   d[31] |= 64;
@@ -720,13 +718,13 @@ void crypto_sign (ubyte[] sm, ulong[] smlen, const(ubyte)[] m, ulong n, const(ub
   for (auto i = 0; i < n; ++i)  sm[64 + i] = m[i];
   for (auto i = 0; i < 32; ++i)  sm[32 + i] = d[32 + i];
 
-  crypto_hash(r, sm[32..$], n+32);
+  crypto_hash(r, sm[32../*$*/32+n+32]/*, n+32*/);
   reduce(r);
   scalarbase(p, r);
   pack(sm, p);
 
   for (auto i = 0; i < 32; ++i)  sm[i+32] = sk[i+32];
-  crypto_hash(h, sm, n + 64);
+  crypto_hash(h, sm[0..n + 64]);
   reduce(h);
 
   for (auto i = 0; i < 64; ++i)  x[i] = 0;
@@ -770,10 +768,11 @@ private bool unpackneg (long[16][4] r, const(ubyte)[] p) {
   return true;
 }
 
-bool crypto_sign_open (ubyte[] m, ulong[] mlen, const(ubyte)[] sm, ulong n, const(ubyte)[] pk) {
+bool crypto_sign_open (ubyte[] m, ulong[] mlen, const(ubyte)[] sm, const(ubyte)[] pk) {
   ubyte[32] t;
   ubyte[64] h;
   long[16][4] p, q;
+  size_t n = sm.length;
 
   mlen[0] = -1;
   if (n < 64) return false;
@@ -782,7 +781,7 @@ bool crypto_sign_open (ubyte[] m, ulong[] mlen, const(ubyte)[] sm, ulong n, cons
 
   for (auto i = 0; i < n; ++i)  m[i] = sm[i];
   for (auto i = 0; i < 32; ++i)  m[i+32] = pk[i];
-  crypto_hash(h, m, n);
+  crypto_hash(h, m/*, n*/);
   reduce(h);
   scalarmult(p, q, h);
 
@@ -1331,7 +1330,7 @@ unittest {
         pos += 64;
       } while (++in_[8]);
     } while (++in_[9]);
-    crypto_hash(h,output,output.length);
+    crypto_hash(h,output);
     assert(h == res);
   }
   version(unittest_full) core3(); // it's slow
@@ -1467,7 +1466,7 @@ unittest {
     static immutable ubyte x[8] = ['t','e','s','t','i','n','g','\n'];
     static ubyte[crypto_hash_BYTES] h;
     static immutable ubyte[crypto_hash_BYTES] res = [0x24,0xf9,0x50,0xaa,0xc7,0xb9,0xea,0x9b,0x3c,0xb7,0x28,0x22,0x8a,0x0c,0x82,0xb6,0x7c,0x39,0xe9,0x6b,0x4b,0x34,0x47,0x98,0x87,0x0d,0x5d,0xae,0xe9,0x3e,0x3a,0xe5,0x93,0x1b,0xaa,0xe8,0xc7,0xca,0xcf,0xea,0x4b,0x62,0x94,0x52,0xc3,0x80,0x26,0xa8,0x1d,0x13,0x8b,0xc7,0xaa,0xd1,0xaf,0x3e,0xf7,0xbf,0xd5,0xec,0x64,0x6d,0x6c,0x28];
-    crypto_hash(h,x,x.length);
+    crypto_hash(h,x);
     //for (auto f = 0; f < crypto_hash_BYTES; ++f) assert(h[f] == res[f]);
     assert(h == res);
   }

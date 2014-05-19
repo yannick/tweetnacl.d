@@ -298,7 +298,7 @@ bool crypto_secretbox_open (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, const
   return true;
 }
 
-private void set25519 (long[] r, const(long)[] a) {
+private void set25519 (long[/*16*/] r, const(long)[/*16*/] a) {
   for (auto i = 0; i < 16; ++i)  r[i]=a[i];
 }
 
@@ -592,7 +592,7 @@ void crypto_hash (ubyte[] out_, const(ubyte)[] m) {
   for (auto i = 0; i < 64; ++i)  out_[i] = h[i];
 }
 
-private void add (long[16][4] p,long[16][4] q) {
+private void add (ref long[16][4] p, ref long[16][4] q) {
   long[16] a, b, c, d, t, e, f, g, h;
 
   Z(a, p[1], p[0]);
@@ -616,11 +616,11 @@ private void add (long[16][4] p,long[16][4] q) {
   M(p[3], e, h);
 }
 
-private void cswap (long[16][4] p,long[16][4] q, ubyte b) {
+private void cswap (ref long[16][4] p, ref long[16][4] q, ubyte b) {
   for (auto i = 0; i < 4; ++i) sel25519(p[i], q[i], b);
 }
 
-private void pack (ubyte[] r,long[16][4] p) {
+private void pack (ubyte[] r, ref long[16][4] p) {
   long[16] tx, ty, zi;
   inv25519(zi, p[2]);
   M(tx, p[0], zi);
@@ -629,7 +629,7 @@ private void pack (ubyte[] r,long[16][4] p) {
   r[31] ^= par25519(tx) << 7;
 }
 
-private void scalarmult (long[16][4] p,long[16][4] q, const(ubyte)[] s) {
+private void scalarmult (ref long[16][4] p, ref long[16][4] q, const(ubyte)[] s) {
   set25519(p[0], gf0);
   set25519(p[1], gf1);
   set25519(p[2], gf1);
@@ -643,8 +643,8 @@ private void scalarmult (long[16][4] p,long[16][4] q, const(ubyte)[] s) {
   }
 }
 
-private void scalarbase (long[16][4] p, const(ubyte)[] s) {
-  long[16] q[4];
+private void scalarbase (ref long[16][4] p, const(ubyte)[] s) {
+  long[16][4] q;
   set25519(q[0], X);
   set25519(q[1], Y);
   set25519(q[2], gf1);
@@ -703,37 +703,42 @@ private void reduce (ubyte[] r) {
   modL(r, x);
 }
 
-void crypto_sign (ubyte[] sm, ulong[] smlen, const(ubyte)[] m, const(ubyte)[] sk) {
+ubyte[] crypto_sign (const(ubyte)[] m, const(ubyte)[] sk) {
+  assert(sk.length == crypto_sign_SECRETKEYBYTES);
   ubyte[64] d, h, r;
   ulong[64] x;
   long[16][4] p;
+  ubyte[] sm;
   size_t n = m.length;
+  size_t smlen = n+64;
+  sm.length = smlen;
 
   crypto_hash(d, sk[0..32]);
   d[0] &= 248;
   d[31] &= 127;
   d[31] |= 64;
 
-  smlen[0] = n+64;
-  for (auto i = 0; i < n; ++i)  sm[64 + i] = m[i];
-  for (auto i = 0; i < 32; ++i)  sm[32 + i] = d[32 + i];
+  for (auto i = 0; i < n; ++i) sm[64+i] = m[i];
+  for (auto i = 0; i < 32; ++i) sm[32+i] = d[32+i];
 
   crypto_hash(r, sm[32../*$*/32+n+32]/*, n+32*/);
   reduce(r);
   scalarbase(p, r);
   pack(sm, p);
 
-  for (auto i = 0; i < 32; ++i)  sm[i+32] = sk[i+32];
-  crypto_hash(h, sm[0..n + 64]);
+  for (auto i = 0; i < 32; ++i) sm[i+32] = sk[i+32];
+  crypto_hash(h, sm[0..n+64]);
   reduce(h);
 
   for (auto i = 0; i < 64; ++i)  x[i] = 0;
-  for (auto i = 0; i < 32; ++i)  x[i] = cast(ulong) r[i];
-  for (auto i = 0; i < 32; ++i)  for (auto j = 0; j < 32; ++j)  x[i+j] += h[i] * cast(ulong) d[j];
+  for (auto i = 0; i < 32; ++i)  x[i] = cast(ulong)r[i];
+  for (auto i = 0; i < 32; ++i)  for (auto j = 0; j < 32; ++j)  x[i+j] += h[i]*cast(ulong)d[j];
   modL(sm[32..$], cast(long[])x);
+
+  return sm;
 }
 
-private bool unpackneg (long[16][4] r, const(ubyte)[] p) {
+private bool unpackneg (ref long[16][4] r, const(ubyte)[] p) {
   long[16] t, chk, num, den, den2, den4, den6;
   set25519(r[2], gf1);
   unpack25519(r[1], p);
@@ -768,17 +773,18 @@ private bool unpackneg (long[16][4] r, const(ubyte)[] p) {
   return true;
 }
 
-bool crypto_sign_open (ubyte[] m, ulong[] mlen, const(ubyte)[] sm, const(ubyte)[] pk) {
+ubyte[] crypto_sign_open (const(ubyte)[] sm, const(ubyte)[] pk) {
   ubyte[32] t;
   ubyte[64] h;
   long[16][4] p, q;
+  ubyte[] m;
   size_t n = sm.length;
 
-  mlen[0] = -1;
-  if (n < 64) return false;
+  if (n < 64) return null;
 
-  if (!unpackneg(q, pk)) return false;
+  if (!unpackneg(q, pk)) return null;
 
+  m.length = n;
   for (auto i = 0; i < n; ++i)  m[i] = sm[i];
   for (auto i = 0; i < 32; ++i)  m[i+32] = pk[i];
   crypto_hash(h, m/*, n*/);
@@ -792,12 +798,12 @@ bool crypto_sign_open (ubyte[] m, ulong[] mlen, const(ubyte)[] sm, const(ubyte)[
   n -= 64;
   if (!crypto_verify_32(sm, t)) {
     for (auto i = 0; i < n; ++i)  m[i] = 0;
-    return false;
+    return null;
   }
 
   for (auto i = 0; i < n; ++i)  m[i] = sm[i + 64];
-  mlen[0] = n;
-  return true;
+
+  return m;
 }
 
 
@@ -865,6 +871,30 @@ unittest {
     }
     return assumeUnique(s);
   }
+
+  static immutable ubyte[crypto_sign_PUBLICKEYBYTES] pk = [0x8f,0x58,0xd8,0xbf,0xb1,0x92,0xd1,0xd7,0xe0,0xc3,0x99,0x8a,0x8d,0x5c,0xb5,0xef,0xfc,0x92,0x2a,0x0d,0x70,0x80,0xe8,0x3b,0xe0,0x27,0xeb,0xf6,0x14,0x95,0xfd,0x16];
+  static immutable ubyte[crypto_sign_SECRETKEYBYTES] sk = [0x78,0x34,0x09,0x59,0x54,0xaa,0xa9,0x2c,0x52,0x3a,0x41,0x3f,0xb6,0xfa,0x6b,0xe1,0xd7,0x0f,0x39,0x30,0x5a,0xe1,0x70,0x12,0x59,0x7d,0x32,0x59,0x9b,0x8b,0x6b,0x2f, 0x8f,0x58,0xd8,0xbf,0xb1,0x92,0xd1,0xd7,0xe0,0xc3,0x99,0x8a,0x8d,0x5c,0xb5,0xef,0xfc,0x92,0x2a,0x0d,0x70,0x80,0xe8,0x3b,0xe0,0x27,0xeb,0xf6,0x14,0x95,0xfd,0x16];
+  static immutable ubyte[5] m = [0x61,0x68,0x6f,0x6a,0x0a];
+  static immutable ubyte[69] sm = [0xce,0x1e,0x15,0xad,0xc3,0x17,0x47,0x15,0x7d,0x44,0x60,0xc1,0x7f,0xb8,0xba,0x45,0xf3,0x6d,0x0b,0xbf,0x51,0xf9,0xbb,0x6b,0xb9,0xa1,0xd2,0x4e,0x44,0x8d,0x9e,0x8c,0x36,0x6f,0x7a,0x8b,0x5e,0x2c,0x69,0xba,0x90,0x2e,0x95,0x46,0x19,0xd8,0xc1,0x8a,0x47,0xc5,0x6e,0x4a,0x28,0x9e,0x81,0x17,0xae,0x90,0x69,0x71,0x7d,0x84,0x6a,0x01,0x61,0x68,0x6f,0x6a,0x0a];
+  ubyte[] smres, t;
+
+  writeln("crypto_sign");
+  smres = crypto_sign(m, sk);
+  assert(smres.length == sm.length);
+  //assert(hashToString(smres) == hashToString(sm));
+  assert(smres == sm);
+
+  writeln("crypto_sign_open");
+  t = crypto_sign_open(smres, pk);
+  //writeln(hashToString(t));
+  assert(t !is null);
+  assert(t.length == smres.length);
+  assert(t[0..m.length] == m);
+  //???
+  //writeln(hashToString(t[m.length..$]));
+  //writeln(hashToString(sm[m.length..$]));
+  //assert(t[m.length..$] == sm[m.length..$]);
+
 
   // based on the code by Adam D. Ruppe
   // This does the preprocessing of input data, fetching one byte at a time of the data until it is empty, then the padding and length at the end

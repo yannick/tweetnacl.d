@@ -296,13 +296,11 @@ bool crypto_secretbox_open (ubyte[] m, const(ubyte)[] c, ulong d, const(ubyte)[]
   return true;
 }
 
-private void set25519(long[] r, const(long)[] a)
-{
+private void set25519 (long[] r, const(long)[] a) {
   for (auto i = 0; i < 16; ++i)  r[i]=a[i];
 }
 
-private void car25519(long[] o)
-{
+private void car25519 (long[] o) {
   long c;
   for (auto i = 0; i < 16; ++i)  {
     o[i]+=(1<<16);
@@ -312,8 +310,7 @@ private void car25519(long[] o)
   }
 }
 
-private void sel25519(long[] p,long[] q, int b)
-{
+private void sel25519 (long[] p,long[] q, int b) {
   long t, c=~(b-1);
   for (auto i = 0; i < 16; ++i)  {
     t= c&(p[i]^q[i]);
@@ -322,8 +319,7 @@ private void sel25519(long[] p,long[] q, int b)
   }
 }
 
-private void pack25519(ubyte[] o, const(long)[] n)
-{
+private void pack25519 (ubyte[] o, const(long)[] n) {
   int b;
   long[16] m, t;
   for (auto i = 0; i < 16; ++i)  t[i]=n[i];
@@ -354,31 +350,26 @@ private bool neq25519 (const(long)[] a, const(long)[] b) {
   return crypto_verify_32(c, d);
 }
 
-private ubyte par25519(const(long)[] a)
-{
+private ubyte par25519 (const(long)[] a) {
   ubyte d[32];
   pack25519(d, a);
   return d[0]&1;
 }
 
-private void unpack25519(long[] o, const(ubyte)[] n)
-{
+private void unpack25519 (long[] o, const(ubyte)[] n) {
   for (auto i = 0; i < 16; ++i) o[i]=n[2*i]+(cast(long)n[2*i+1]<<8);
   o[15]&=0x7fff;
 }
 
-private void A(long[] o, const(long)[] a, const(long)[] b)
-{
+private void A (long[] o, const(long)[] a, const(long)[] b) {
   for (auto i = 0; i < 16; ++i)  o[i]=a[i]+b[i];
 }
 
-private void Z(long[] o, const(long)[] a, const(long)[] b)
-{
+private void Z (long[] o, const(long)[] a, const(long)[] b) {
   for (auto i = 0; i < 16; ++i)  o[i]=a[i]-b[i];
 }
 
-private void M(long[] o, const(long)[] a, const(long)[] b)
-{
+private void M (long[] o, const(long)[] a, const(long)[] b) {
   long[31] t;
   for (auto i = 0; i < 31; ++i)  t[i]=0;
   for (auto i = 0; i < 16; ++i)  for (auto j = 0; j < 16; ++j)  t[i+j]+=a[i]*b[j];
@@ -388,13 +379,11 @@ private void M(long[] o, const(long)[] a, const(long)[] b)
   car25519(o);
 }
 
-private void S(long[] o, const(long)[] a)
-{
+private void S (long[] o, const(long)[] a) {
   M(o, a, a);
 }
 
-private void inv25519(long[] o, const(long)[] i)
-{
+private void inv25519 (long[] o, const(long)[] i) {
   long[16] c;
   for (auto a = 0; a < 16; ++a)  c[a]=i[a];
   for(auto a=253;a>=0;a--) {
@@ -404,8 +393,7 @@ private void inv25519(long[] o, const(long)[] i)
   for (auto a = 0; a < 16; ++a)  o[a]=c[a];
 }
 
-private void pow2523(long[] o, const(long)[] i)
-{
+private void pow2523 (long[] o, const(long)[] i) {
   long[16] c;
   for (auto a = 0; a < 16; ++a)  c[a]=i[a];
   for(auto a=250;a>=0;a--) {
@@ -415,8 +403,7 @@ private void pow2523(long[] o, const(long)[] i)
   for (auto a = 0; a < 16; ++a)  o[a]=c[a];
 }
 
-int crypto_scalarmult(ubyte[] q, const(ubyte)[] n, const(ubyte)[] p)
-{
+void crypto_scalarmult (ubyte[] q, const(ubyte)[] n, const(ubyte)[] p) {
   int i;
   ubyte z[32];
   long[80] x;
@@ -465,61 +452,52 @@ int crypto_scalarmult(ubyte[] q, const(ubyte)[] n, const(ubyte)[] p)
   inv25519(x[32..$], x[32..$]);
   M(x[16..$], x[16..$], x[32..$]);
   pack25519(q, x[16..$]);
-  return 0;
 }
 
-int crypto_scalarmult_base(ubyte[] q, const(ubyte)[] n)
-{
-  return crypto_scalarmult(q, n, _9);
+void crypto_scalarmult_base (ubyte[] q, const(ubyte)[] n) {
+  crypto_scalarmult(q, n, _9);
 }
 
-int crypto_box_keypair(ubyte[] y, ubyte[] x)
-{
+void crypto_box_keypair (ubyte[] y, ubyte[] x) {
   randombytes(x, 32);
-  return crypto_scalarmult_base(y, x);
+  crypto_scalarmult_base(y, x);
 }
 
-void crypto_box_beforenm(ubyte[] k, const(ubyte)[] y, const(ubyte)[] x)
-{
+void crypto_box_beforenm (ubyte[] k, const(ubyte)[] y, const(ubyte)[] x) {
   ubyte s[32];
   crypto_scalarmult(s, x, y);
   crypto_core_hsalsa20(k, _0, s, sigma);
 }
 
-bool crypto_box_afternm(ubyte[] c, const(ubyte)[] m, ulong d, const(ubyte)[] n, const(ubyte)[] k)
-{
+bool crypto_box_afternm (ubyte[] c, const(ubyte)[] m, ulong d, const(ubyte)[] n, const(ubyte)[] k) {
   return crypto_secretbox(c, m, d, n, k);
 }
 
-bool crypto_box_open_afternm(ubyte[] m, const(ubyte)[] c, ulong d, const(ubyte)[] n, const(ubyte)[] k)
-{
+bool crypto_box_open_afternm (ubyte[] m, const(ubyte)[] c, ulong d, const(ubyte)[] n, const(ubyte)[] k) {
   return crypto_secretbox_open(m, c, d, n, k);
 }
 
-int crypto_box(ubyte[] c, const(ubyte)[] m, ulong d, const(ubyte)[] n, const(ubyte)[] y, const(ubyte)[] x)
-{
+bool crypto_box (ubyte[] c, const(ubyte)[] m, ulong d, const(ubyte)[] n, const(ubyte)[] y, const(ubyte)[] x) {
   ubyte k[32];
   crypto_box_beforenm(k, y, x);
   return crypto_box_afternm(c, m, d, n, k);
 }
 
-bool crypto_box_open(ubyte[] m, const(ubyte)[] c, ulong d, const(ubyte)[] n, const(ubyte)[] y, const(ubyte)[] x)
-{
+bool crypto_box_open (ubyte[] m, const(ubyte)[] c, ulong d, const(ubyte)[] n, const(ubyte)[] y, const(ubyte)[] x) {
   ubyte k[32];
   crypto_box_beforenm(k, y, x);
   return crypto_box_open_afternm(m, c, d, n, k);
 }
 
-private ulong R(ulong x, int c) { return (x >> c) | (x << (64 - c)); }
-private ulong Ch(ulong x, ulong y, ulong z) { return (x & y) ^ (~x & z); }
-private ulong Maj(ulong x, ulong y, ulong z) { return (x & y) ^ (x & z) ^ (y & z); }
-private ulong Sigma0(ulong x) { return R(x, 28) ^ R(x, 34) ^ R(x, 39); }
-private ulong Sigma1(ulong x) { return R(x, 14) ^ R(x, 18) ^ R(x, 41); }
-private ulong sigma0(ulong x) { return R(x, 1) ^ R(x, 8) ^ (x >> 7); }
-private ulong sigma1(ulong x) { return R(x, 19) ^ R(x, 61) ^ (x >> 6); }
+private ulong R (ulong x, int c) { return (x >> c) | (x << (64 - c)); }
+private ulong Ch (ulong x, ulong y, ulong z) { return (x & y) ^ (~x & z); }
+private ulong Maj (ulong x, ulong y, ulong z) { return (x & y) ^ (x & z) ^ (y & z); }
+private ulong Sigma0 (ulong x) { return R(x, 28) ^ R(x, 34) ^ R(x, 39); }
+private ulong Sigma1 (ulong x) { return R(x, 14) ^ R(x, 18) ^ R(x, 41); }
+private ulong sigma0 (ulong x) { return R(x, 1) ^ R(x, 8) ^ (x >> 7); }
+private ulong sigma1 (ulong x) { return R(x, 19) ^ R(x, 61) ^ (x >> 6); }
 
-private static immutable ulong[80] K =
-[
+private static immutable ulong[80] K = [
   0x428a2f98d728ae22UL, 0x7137449123ef65cdUL, 0xb5c0fbcfec4d3b2fUL, 0xe9b5dba58189dbbcUL,
   0x3956c25bf348b538UL, 0x59f111f1b605d019UL, 0x923f82a4af194f9bUL, 0xab1c5ed5da6d8118UL,
   0xd807aa98a3030242UL, 0x12835b0145706fbeUL, 0x243185be4ee4b28cUL, 0x550c7dc3d5ffb4e2UL,
@@ -542,8 +520,7 @@ private static immutable ulong[80] K =
   0x4cc5d4becb3e42b6UL, 0x597f299cfc657e2aUL, 0x5fcb6fab3ad6faecUL, 0x6c44198c4a475817UL
 ];
 
-int crypto_hashblocks(ubyte[] x, const(ubyte)[] m, ulong n)
-{
+void crypto_hashblocks (ubyte[] x, const(ubyte)[] m, ulong n) {
   ulong[8] z, b, a;
   ulong[16] w;
   ulong t;
@@ -574,7 +551,7 @@ int crypto_hashblocks(ubyte[] x, const(ubyte)[] m, ulong n)
 
   for (auto i = 0; i < 8; ++i)  ts64(x[8*i..$], z[i]);
 
-  return cast(int)n;
+  //return cast(int)n;
 }
 
 private static immutable ubyte[64] iv = [
@@ -588,8 +565,7 @@ private static immutable ubyte[64] iv = [
   0x5b, 0xe0, 0xcd, 0x19, 0x13, 0x7e, 0x21, 0x79
 ];
 
-int crypto_hash(ubyte[] out_, const(ubyte)[] m, ulong n)
-{
+void crypto_hash (ubyte[] out_, const(ubyte)[] m, ulong n) {
   ubyte[64] h;
   ubyte[256] x;
   ulong b = n;
@@ -612,12 +588,9 @@ int crypto_hash(ubyte[] out_, const(ubyte)[] m, ulong n)
   crypto_hashblocks(h, x, n);
 
   for (auto i = 0; i < 64; ++i)  out_[i] = h[i];
-
-  return 0;
 }
 
-private void add(long[16][4] p,long[16][4] q)
-{
+private void add (long[16][4] p,long[16][4] q) {
   long[16] a, b, c, d, t, e, f, g, h;
 
   Z(a, p[1], p[0]);
@@ -641,14 +614,11 @@ private void add(long[16][4] p,long[16][4] q)
   M(p[3], e, h);
 }
 
-private void cswap(long[16][4] p,long[16][4] q, ubyte b)
-{
-  for (auto i = 0; i < 4; ++i) 
-    sel25519(p[i], q[i], b);
+private void cswap (long[16][4] p,long[16][4] q, ubyte b) {
+  for (auto i = 0; i < 4; ++i) sel25519(p[i], q[i], b);
 }
 
-private void pack(ubyte[] r,long[16][4] p)
-{
+private void pack (ubyte[] r,long[16][4] p) {
   long[16] tx, ty, zi;
   inv25519(zi, p[2]);
   M(tx, p[0], zi);
@@ -657,8 +627,7 @@ private void pack(ubyte[] r,long[16][4] p)
   r[31] ^= par25519(tx) << 7;
 }
 
-private void scalarmult(long[16][4] p,long[16][4] q, const(ubyte)[] s)
-{
+private void scalarmult (long[16][4] p,long[16][4] q, const(ubyte)[] s) {
   set25519(p[0], gf0);
   set25519(p[1], gf1);
   set25519(p[2], gf1);
@@ -672,8 +641,7 @@ private void scalarmult(long[16][4] p,long[16][4] q, const(ubyte)[] s)
   }
 }
 
-private void scalarbase(long[16][4] p, const(ubyte)[] s)
-{
+private void scalarbase (long[16][4] p, const(ubyte)[] s) {
   long[16] q[4];
   set25519(q[0], X);
   set25519(q[1], Y);
@@ -682,8 +650,7 @@ private void scalarbase(long[16][4] p, const(ubyte)[] s)
   scalarmult(p, q, s);
 }
 
-int crypto_sign_keypair(ubyte[] pk, ubyte[] sk)
-{
+void crypto_sign_keypair (ubyte[] pk, ubyte[] sk) {
   ubyte d[64];
   long[16][4] p;
 
@@ -697,13 +664,11 @@ int crypto_sign_keypair(ubyte[] pk, ubyte[] sk)
   pack(pk, p);
 
   for (auto i = 0; i < 32; ++i)  sk[32 + i] = pk[i];
-  return 0;
 }
 
 private static immutable ulong[32] L = [0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10];
 
-private void modL(ubyte[] r, long[] x)
-{
+private void modL (ubyte[] r, long[] x) {
   long carry;
   for (auto i = 63;i >= 32;--i) {
     int j;
@@ -729,16 +694,14 @@ private void modL(ubyte[] r, long[] x)
   }
 }
 
-private void reduce(ubyte[] r)
-{
+private void reduce (ubyte[] r) {
   long[64] x;
   for (auto i = 0; i < 64; ++i)  x[i] = cast(ulong) r[i];
   for (auto i = 0; i < 64; ++i)  r[i] = 0;
   modL(r, x);
 }
 
-int crypto_sign(ubyte[] sm, ulong[] smlen, const(ubyte)[] m, ulong n, const(ubyte)[] sk)
-{
+void crypto_sign (ubyte[] sm, ulong[] smlen, const(ubyte)[] m, ulong n, const(ubyte)[] sk) {
   ubyte[64] d, h, r;
   ulong[64] x;
   long[16][4] p;
@@ -765,12 +728,9 @@ int crypto_sign(ubyte[] sm, ulong[] smlen, const(ubyte)[] m, ulong n, const(ubyt
   for (auto i = 0; i < 32; ++i)  x[i] = cast(ulong) r[i];
   for (auto i = 0; i < 32; ++i)  for (auto j = 0; j < 32; ++j)  x[i+j] += h[i] * cast(ulong) d[j];
   modL(sm[32..$], cast(long[])x);
-
-  return 0;
 }
 
-private int unpackneg(long[16][4] r, const(ubyte)[] p)
-{
+private bool unpackneg (long[16][4] r, const(ubyte)[] p) {
   long[16] t, chk, num, den, den2, den4, den6;
   set25519(r[2], gf1);
   unpack25519(r[1], p);
@@ -797,25 +757,23 @@ private int unpackneg(long[16][4] r, const(ubyte)[] p)
 
   S(chk, r[0]);
   M(chk, chk, den);
-  if (!neq25519(chk, num)) return -1;
+  if (!neq25519(chk, num)) return false;
 
   if (par25519(r[0]) == (p[31]>>7)) Z(r[0], gf0, r[0]);
 
   M(r[3], r[0], r[1]);
-  return 0;
+  return true;
 }
 
-int crypto_sign_open(ubyte[] m, ulong[] mlen, const(ubyte)[] sm, ulong n, const(ubyte)[] pk)
-{
-  //int i;
+bool crypto_sign_open (ubyte[] m, ulong[] mlen, const(ubyte)[] sm, ulong n, const(ubyte)[] pk) {
   ubyte[32] t;
   ubyte[64] h;
   long[16][4] p, q;
 
   mlen[0] = -1;
-  if (n < 64) return -1;
+  if (n < 64) return false;
 
-  if (unpackneg(q, pk)) return -1;
+  if (!unpackneg(q, pk)) return false;
 
   for (auto i = 0; i < n; ++i)  m[i] = sm[i];
   for (auto i = 0; i < 32; ++i)  m[i+32] = pk[i];
@@ -830,12 +788,12 @@ int crypto_sign_open(ubyte[] m, ulong[] mlen, const(ubyte)[] sm, ulong n, const(
   n -= 64;
   if (!crypto_verify_32(sm, t)) {
     for (auto i = 0; i < n; ++i)  m[i] = 0;
-    return -1;
+    return false;
   }
 
   for (auto i = 0; i < n; ++i)  m[i] = sm[i + 64];
   mlen[0] = n;
-  return 0;
+  return true;
 }
 
 

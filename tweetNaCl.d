@@ -32,10 +32,10 @@ enum {
 void function (ubyte[] dest, size_t len) randombytes = null;
 
 
-private immutable ubyte[16] _0 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-private immutable ubyte[32] _9 = [9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+private static immutable ubyte[16] _0 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+private static immutable ubyte[32] _9 = [9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
 
-private immutable long[16]
+private static immutable long[16]
   gf0 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
   gf1 = [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
   _121665 = [0xDB41,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -132,7 +132,7 @@ int crypto_core_hsalsa20 (ubyte[] out_, const(ubyte[]) in_, const(ubyte[]) k, co
   return 0;
 }
 
-private immutable ubyte[16] sigma = ['e','x','p','a','n','d',' ','3','2','-','b','y','t','e',' ','k'];
+private static immutable ubyte[16] sigma = ['e','x','p','a','n','d',' ','3','2','-','b','y','t','e',' ','k'];
 
 int crypto_stream_salsa20_xor(ubyte[] c, const(ubyte[]) m, ulong b, const(ubyte[]) n, const(ubyte[]) k) {
   ubyte[16] z;
@@ -191,7 +191,7 @@ private void add1305(uint[] h, const(uint[]) c)
   }
 }
 
-private immutable uint[17] minusp = [5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,252];
+private static immutable uint[17] minusp = [5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,252];
 
 int crypto_onetimeauth(ubyte[] out_, const(ubyte[]) m, ulong n, const(ubyte[]) k)
 {
@@ -499,7 +499,7 @@ private ulong Sigma1(ulong x) { return R(x, 14) ^ R(x, 18) ^ R(x, 41); }
 private ulong sigma0(ulong x) { return R(x, 1) ^ R(x, 8) ^ (x >> 7); }
 private ulong sigma1(ulong x) { return R(x, 19) ^ R(x, 61) ^ (x >> 6); }
 
-private immutable ulong[80] K =
+private static immutable ulong[80] K =
 [
   0x428a2f98d728ae22UL, 0x7137449123ef65cdUL, 0xb5c0fbcfec4d3b2fUL, 0xe9b5dba58189dbbcUL,
   0x3956c25bf348b538UL, 0x59f111f1b605d019UL, 0x923f82a4af194f9bUL, 0xab1c5ed5da6d8118UL,
@@ -558,7 +558,7 @@ int crypto_hashblocks(ubyte[] x, const(ubyte[]) m, ulong n)
   return cast(int)n;
 }
 
-private immutable ubyte[64] iv = [
+private static immutable ubyte[64] iv = [
   0x6a, 0x09, 0xe6, 0x67, 0xf3, 0xbc, 0xc9, 0x08,
   0xbb, 0x67, 0xae, 0x85, 0x84, 0xca, 0xa7, 0x3b,
   0x3c, 0x6e, 0xf3, 0x72, 0xfe, 0x94, 0xf8, 0x2b,
@@ -681,7 +681,7 @@ int crypto_sign_keypair(ubyte[] pk, ubyte[] sk)
   return 0;
 }
 
-private immutable ulong[32] L = [0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10];
+private static immutable ulong[32] L = [0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10];
 
 private void modL(ubyte[] r, long[] x)
 {

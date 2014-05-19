@@ -15,6 +15,9 @@ module tweetNaCl;
 enum {
   crypto_hash_BYTES = 64,
 
+  crypto_auth_BYTES = 32,
+  crypto_auth_KEYBYTES = 32,
+
   crypto_box_PUBLICKEYBYTES = 32,
   crypto_box_SECRETKEYBYTES = 32,
   crypto_box_BEFORENMBYTES = 32,
@@ -22,10 +25,39 @@ enum {
   crypto_box_ZEROBYTES = 32,
   crypto_box_BOXZEROBYTES = 16,
 
+  crypto_core_salsa20_OUTPUTBYTES = 64,
+  crypto_core_salsa20_INPUTBYTES = 16,
+  crypto_core_salsa20_KEYBYTES = 32,
+  crypto_core_salsa20_CONSTBYTES = 16,
+
+  crypto_core_hsalsa20_OUTPUTBYTES = 32,
+  crypto_core_hsalsa20_INPUTBYTES = 16,
+  crypto_core_hsalsa20_KEYBYTES = 32,
+  crypto_core_hsalsa20_CONSTBYTES = 16,
+
+  crypto_onetimeauth_BYTES = 16,
+  crypto_onetimeauth_KEYBYTES = 32,
+
+  crypto_scalarmult_BYTES = 32,
+  crypto_scalarmult_SCALARBYTES = 32,
+
   crypto_secretbox_KEYBYTES = 32,
   crypto_secretbox_NONCEBYTES = 24,
   crypto_secretbox_ZEROBYTES = 32,
   crypto_secretbox_BOXZEROBYTES = 16,
+
+  crypto_sign_BYTES = 64,
+  crypto_sign_PUBLICKEYBYTES = 32,
+  crypto_sign_SECRETKEYBYTES = 64,
+
+  crypto_stream_xsalsa20_KEYBYTES = 32,
+  crypto_stream_xsalsa20_NONCEBYTES = 24,
+
+  crypto_stream_salsa20_KEYBYTES = 32,
+  crypto_stream_salsa20_NONCEBYTES = 8,
+
+  crypto_verify_16_tweet_BYTES = 16,
+  crypto_verify_32_tweet_BYTES = 32,
 }
 
 

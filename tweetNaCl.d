@@ -1549,8 +1549,8 @@ unittest {
   }
   onetimeauth2();
 
-  void onetimeauth5 () {
-    writeln("onetimeauth5");
+  void onetimeauth7 () {
+    writeln("onetimeauth7");
     static ubyte[32] key;
     static ubyte[10000] c;
     static ubyte[16] a;
@@ -1559,7 +1559,7 @@ unittest {
       //if (clen%512 == 0) { writef("\r%s", clen); stdout.flush(); }
       randombytes(key, key.length);
       randombytes(c, clen);
-      crypto_onetimeauth(a,c,key);
+      crypto_onetimeauth(a,c[0..clen],key);
       assert(crypto_onetimeauth_verify(a,c[0..clen],key));
       if (clen > 0) {
         c[uniform(0, clen)] += 1 + (uniform(0, 255));
@@ -1569,7 +1569,7 @@ unittest {
       }
     }
   }
-  version(unittest_full) onetimeauth5(); // it's slow
+  version(unittest_full) onetimeauth7(); // it's slow
 
   void scalarmult () {
     writeln("scalarmult");

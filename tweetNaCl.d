@@ -5,7 +5,7 @@
  *  Tanja Lange, Technische Universiteit Eindhoven 
  *  Peter Schwabe, Radboud Universiteit Nijmegen
  *
- * Ported by Ketmar // Invisible Vector
+ * Ported by Ketmar // Invisible Vector ( ketmar@ketmar.no-ip.org )
  *
  * Public Domain (or WTFPL).
  */

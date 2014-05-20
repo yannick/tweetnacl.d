@@ -56,6 +56,9 @@ enum {
   crypto_stream_salsa20_KEYBYTES = 32,
   crypto_stream_salsa20_NONCEBYTES = 8,
 
+  crypto_stream_KEYBYTES = 32,
+  crypto_stream_NONCEBYTES = 24,
+
   crypto_verify_16_BYTES = 16,
   crypto_verify_32_BYTES = 32,
 }
@@ -106,10 +109,30 @@ private int vn (const(ubyte)[] x, const(ubyte)[] y, int n) {
   return (1&((d-1)>>8))-1;
 }
 
+/**
+ * The crypto_verify_16() function checks that strings 'x' and 'y' has same content.
+ *
+ * Params:
+ *  x = first string, slice length must be at least crypto_verify_16_BYTES, extra ignored
+ *  y = second string, slice length must be at least crypto_verify_16_BYTES, extra ignored
+ *
+ * Returns:
+ *  success flag
+ */
 bool crypto_verify_16 (const(ubyte)[] x, const(ubyte)[] y) {
   return (vn(x, y, 16) == 0);
 }
 
+/**
+ * The crypto_verify_32() function checks that strings 'x' and 'y' has same content.
+ *
+ * Params:
+ *  x = first string, slice length must be at least crypto_verify_32_BYTES, extra ignored
+ *  y = second string, slice length must be at least crypto_verify_32_BYTES, extra ignored
+ *
+ * Returns:
+ *  success flag
+ */
 bool crypto_verify_32 (const(ubyte)[] x, const(ubyte)[] y) {
   return (vn(x, y, 32) == 0);
 }
@@ -154,17 +177,32 @@ private void core (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(uby
     for (auto i = 0; i < 16; ++i)  st32(out_[4*i..$], x[i] + y[i]);
 }
 
-void crypto_core_salsa20 (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c) {
+private void crypto_core_salsa20 (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c) {
   core(out_, in_, k, c, 0);
 }
 
-void crypto_core_hsalsa20 (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c) {
+private void crypto_core_hsalsa20 (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c) {
   core(out_, in_, k, c, 1);
 }
 
 private static immutable ubyte[16] sigma = ['e','x','p','a','n','d',' ','3','2','-','b','y','t','e',' ','k'];
 
+/**
+ * The crypto_stream_salsa20_xor() function encrypts a message 'm' using a secret key 'k'
+ * and a nonce 'n'. The crypto_stream_salsa20_xor() function returns the ciphertext 'c'.
+ *
+ * Params:
+ *  c = resulting ciphertext
+ *  m = message
+ *  n = nonce
+ *  k = secret key
+ *
+ * Returns:
+ *  ciphertext in 'c'
+ */
 void crypto_stream_salsa20_xor (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] k) {
+  assert(n.length == crypto_stream_salsa20_NONCEBYTES);
+  assert(k.length == crypto_stream_salsa20_KEYBYTES);
   ubyte[16] z;
   ubyte[64] x;
   uint u;
@@ -192,17 +230,62 @@ void crypto_stream_salsa20_xor (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, c
   }
 }
 
+/**
+ * The crypto_stream_salsa20() function produces a stream 'c'
+ * as a function of a secret key 'k' and a nonce 'n'.
+ *
+ * Params:
+ *  c = resulting stream
+ *  n = nonce
+ *  k = secret key
+ *
+ * Returns:
+ *  ciphertext in 'c'
+ */
 void crypto_stream_salsa20 (ubyte[] c, const(ubyte)[] n, const(ubyte)[] k) {
+  assert(n.length == crypto_stream_salsa20_NONCEBYTES);
+  assert(k.length == crypto_stream_salsa20_KEYBYTES);
   crypto_stream_salsa20_xor(c, null, n, k);
 }
 
+/**
+ * The crypto_stream() function produces a stream 'c'
+ * as a function of a secret key 'k' and a nonce 'n'.
+ *
+ * Params:
+ *  c = output slice
+ *  n = nonce
+ *  k = secret key
+ *
+ * Returns:
+ *  stream in 'c'
+ */
 void crypto_stream (ubyte[] c, const(ubyte)[] n, const(ubyte)[] k) {
+  assert(c !is null);
+  assert(n.length == crypto_stream_NONCEBYTES);
+  assert(k.length == crypto_stream_KEYBYTES);
   ubyte[32] s;
   crypto_core_hsalsa20(s, n, k, sigma);
   crypto_stream_salsa20(c, n[16..$], s);
 }
 
+/**
+ * The crypto_stream_xor() function encrypts a message 'm' using a secret key 'k'
+ * and a nonce 'n'. The crypto_stream_xor() function returns the ciphertext 'c'.
+ *
+ * Params:
+ *  c = output slice
+ *  n = nonce
+ *  k = secret key
+ *
+ * Returns:
+ *  ciphertext in 'c'
+ */
 void crypto_stream_xor (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] k) {
+  assert(c !is null);
+  assert(m.length >= c.length);
+  assert(n.length == crypto_stream_NONCEBYTES);
+  assert(k.length == crypto_stream_KEYBYTES);
   ubyte s[32];
   crypto_core_hsalsa20(s, n, k, sigma);
   crypto_stream_salsa20_xor(c, m, n[16..$], s);
@@ -219,7 +302,21 @@ private void add1305 (uint[] h, const(uint)[] c) {
 
 private static immutable uint[17] minusp = [5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,252];
 
+/**
+ * The crypto_onetimeauth() function authenticates a message 'm'
+ * using a secret key 'k'. The function returns an authenticator 'out_'.
+ *
+ * Params:
+ *  out_ = authenticator, slice size must be at least crypto_onetimeauth_BYTES, extra ignored
+ *  m == message
+ *  k == secret key, slice size must be at least crypto_onetimeauth_KEYBYTES, extra ignored
+ *
+ * Returns:
+ *  authenticator in 'out_'
+ */
 void crypto_onetimeauth (ubyte[] out_, const(ubyte)[] m, const(ubyte)[] k) {
+  assert(k.length >= crypto_onetimeauth_KEYBYTES);
+  assert(out_.length >= crypto_onetimeauth_BYTES);
   uint s, i, j, u;
   uint[17] x, r, h, c, g;
   uint mpos = 0;
@@ -274,21 +371,69 @@ void crypto_onetimeauth (ubyte[] out_, const(ubyte)[] m, const(ubyte)[] k) {
   for (j = 0; j < 16; ++j)  out_[j] = cast(ubyte)(h[j]&0xff);
 }
 
+/**
+ * The crypto_onetimeauth_verify() function checks that
+ * 'h' is a correct authenticator of a message 'm' under the secret key 'k'.
+ *
+ * Params:
+ *  h = authenticator, slice size must be at least crypto_onetimeauth_BYTES, extra ignored
+ *  m == message
+ *  k == secret key, slice size must be at least crypto_onetimeauth_KEYBYTES, extra ignored
+ *
+ * Returns:
+ *  success flag
+ */
 bool crypto_onetimeauth_verify (const(ubyte)[] h, const(ubyte)[] m, const(ubyte)[] k) {
+  assert(h.length >= crypto_onetimeauth_BYTES);
+  assert(k.length >= crypto_onetimeauth_KEYBYTES);
   ubyte x[16];
   crypto_onetimeauth(x, m, k);
   return crypto_verify_16(h, x);
 }
 
+/**
+ * The crypto_secretbox() function encrypts and authenticates
+ * a message 'm' using a secret key 'k' and a nonce 'n'.
+ * The crypto_secretbox() function returns the resulting ciphertext 'c'.
+ *
+ * Params:
+ *  c = resulting cyphertext
+ *  k = secret key
+ *  n = nonce
+ *
+ * Returns:
+ *  success flag and cyphertext in 'c'
+ */
 bool crypto_secretbox (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] k) {
+  assert(k.length >= crypto_secretbox_KEYBYTES);
+  assert(n.length >= crypto_secretbox_NONCEBYTES);
+  //c.length = m.length+crypto_secretbox_ZEROBYTES;
   if (c is null || c.length < 32) return false;
+  //assert(m.length >= c.length);
   crypto_stream_xor(c, m, n, k);
   crypto_onetimeauth(c[16..$], c[32..$], c);
   for (auto i = 0; i < 16; ++i) c[i] = 0;
+  //return c[crypto_secretbox_BOXZEROBYTES..$];
   return true;
 }
 
+/**
+ * The crypto_secretbox_open() function verifies and decrypts
+ * a ciphertext 'c' using a secret key 'k' and a nonce 'n'.
+ * The crypto_secretbox_open() function returns the resulting plaintext 'm'.
+ *
+ * Params:
+ *  m = resulting message
+ *  c = cyphertext
+ *  k = secret key
+ *  n = nonce
+ *
+ * Returns:
+ *  success flag and message in 'm'
+ */
 bool crypto_secretbox_open (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, const(ubyte)[] k) {
+  assert(k.length >= crypto_secretbox_KEYBYTES);
+  assert(n.length >= crypto_secretbox_NONCEBYTES);
   ubyte x[32];
   if (m is null || m.length < 32) return false;
   crypto_stream(x, n, k);
@@ -405,7 +550,20 @@ private void pow2523 (long[] o, const(long)[] i) {
   for (auto a = 0; a < 16; ++a)  o[a]=c[a];
 }
 
+/* FIXME!
+ * This function multiplies a group element 'p' by an integer 'n'.
+ *
+ * Params:
+ *  p = group element
+ *  n = number
+ *
+ * Returns:
+ *  resulting group element 'q' of length crypto_scalarmult_BYTES.
+ */
 void crypto_scalarmult (ubyte[] q, const(ubyte)[] n, const(ubyte)[] p) {
+  assert(q.length == crypto_scalarmult_BYTES);
+  assert(n.length == crypto_scalarmult_BYTES);
+  assert(p.length == crypto_scalarmult_BYTES);
   int i;
   ubyte z[32];
   long[80] x;
@@ -456,38 +614,147 @@ void crypto_scalarmult (ubyte[] q, const(ubyte)[] n, const(ubyte)[] p) {
   pack25519(q, x[16..$]);
 }
 
+/* FIXME!
+ * The crypto_scalarmult_base() function computes
+ * the scalar product of a standard group element and an integer 'n'.
+ *
+ * Params:
+ *  n = number
+ *
+ * Returns:
+ *  resulting group element 'q' of length crypto_scalarmult_BYTES.
+ */
 void crypto_scalarmult_base (ubyte[] q, const(ubyte)[] n) {
+  assert(q.length == crypto_scalarmult_BYTES);
+  assert(n.length == crypto_scalarmult_SCALARBYTES);
   crypto_scalarmult(q, n, _9);
 }
 
-void crypto_box_keypair (ubyte[] y, ubyte[] x) {
-  randombytes(x, 32);
-  crypto_scalarmult_base(y, x);
+/**
+ * The crypto_box_keypair() function randomly generates a secret key and
+ * a corresponding public key.
+ *
+ * Params:
+ *  pk = slice to put generated public key into
+ *  sk = slice to put generated secret key into
+ *
+ * Returns:
+ *  pair of new keys
+ */
+void crypto_box_keypair (ubyte[] pk, ubyte[] sk) {
+  assert(pk.length >= crypto_box_PUBLICKEYBYTES);
+  assert(sk.length >= crypto_box_SECRETKEYBYTES);
+  randombytes(sk, 32);
+  crypto_scalarmult_base(pk, sk);
 }
 
-void crypto_box_beforenm (ubyte[] k, const(ubyte)[] y, const(ubyte)[] x) {
+/**
+ * Function crypto_box_beforenm() computes a shared secret 's' from
+ * public key 'pk' and secret key 'sk'.
+ *
+ * Params:
+ *  k = slice to put secret into
+ *  pk = public
+ *  sk = secret
+ *
+ * Returns:
+ *  generated secret
+ */
+void crypto_box_beforenm (ubyte[] k, const(ubyte)[] pk, const(ubyte)[] sk) {
+  assert(pk.length >= crypto_box_PUBLICKEYBYTES);
+  assert(sk.length >= crypto_box_SECRETKEYBYTES);
+  assert(k.length >= crypto_box_BEFORENMBYTES);
   ubyte s[32];
-  crypto_scalarmult(s, x, y);
+  crypto_scalarmult(s, sk, pk);
   crypto_core_hsalsa20(k, _0, s, sigma);
 }
 
+/**
+ * The crypto_box_afternm() function encrypts and authenticates
+ * a message 'm' using a secret key 'k' and a nonce 'n'.
+ * The crypto_box_afternm() function returns the resulting ciphertext 'c'.
+ *
+ * Params:
+ *  c = resulting cyphertext
+ *  m = message
+ *  n = nonce
+ *  k = secret
+ *
+ * Returns:
+ *  success flag and cyphertext in 'c'
+ */
 bool crypto_box_afternm (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] k) {
+  assert(n.length >=  crypto_box_NONCEBYTES);
+  assert(k.length >= crypto_box_BEFORENMBYTES);
   return crypto_secretbox(c, m, n, k);
 }
 
+/**
+ * The crypto_box_open_afternm() function verifies and decrypts
+ * a ciphertext 'c' using a secret key 'k' and a nonce 'n'.
+ * The crypto_box_open_afternm() function returns the resulting message 'm'.
+ *
+ * Params:
+ *  m = resulting message
+ *  c = cyphertext
+ *  n = nonce
+ *  k = secret
+ *
+ * Returns:
+ *  success flag and resulting message in 'm'
+ */
 bool crypto_box_open_afternm (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, const(ubyte)[] k) {
+  assert(n.length >=  crypto_box_NONCEBYTES);
+  assert(k.length >= crypto_box_BEFORENMBYTES);
   return crypto_secretbox_open(m, c, n, k);
 }
 
-bool crypto_box (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] y, const(ubyte)[] x) {
+/**
+ * The crypto_box() function encrypts and authenticates a message 'm'
+ * using the sender's secret key 'sk', the receiver's public key 'pk',
+ * and a nonce 'n'. The crypto_box() function returns the resulting ciphertext 'c'.
+ *
+ * Params:
+ *  c = resulting cyphertext
+ *  m = message
+ *  n = nonce
+ *  pk = receiver's public key
+ *  sk = sender's secret key
+ *
+ * Returns:
+ *  success flag and cyphertext in 'c'
+ */
+bool crypto_box (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] pk, const(ubyte)[] sk) {
+  assert(n.length >= crypto_box_NONCEBYTES);
+  assert(pk.length >= crypto_box_PUBLICKEYBYTES);
+  assert(sk.length >= crypto_box_SECRETKEYBYTES);
   ubyte k[32];
-  crypto_box_beforenm(k, y, x);
+  crypto_box_beforenm(k, pk, sk);
   return crypto_box_afternm(c, m, n, k);
 }
 
-bool crypto_box_open (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, const(ubyte)[] y, const(ubyte)[] x) {
+/**
+ * The crypto_box_open() function verifies and decrypts
+ * a ciphertext 'c' using the receiver's secret key 'sk',
+ * the sender's public key 'pk', and a nonce 'n'.
+ * The crypto_box_open() function returns the resulting message 'm'.
+
+ * Params:
+ *  m = resulting message
+ *  c = cyphertext
+ *  n = nonce
+ *  pk = receiver's public key
+ *  sk = sender's secret key
+ *
+ * Returns:
+ *  success flag and message in 'm'
+ */
+bool crypto_box_open (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, const(ubyte)[] pk, const(ubyte)[] sk) {
+  assert(n.length >= crypto_box_NONCEBYTES);
+  assert(pk.length >= crypto_box_PUBLICKEYBYTES);
+  assert(sk.length >= crypto_box_SECRETKEYBYTES);
   ubyte k[32];
-  crypto_box_beforenm(k, y, x);
+  crypto_box_beforenm(k, pk, sk);
   return crypto_box_open_afternm(m, c, n, k);
 }
 
@@ -522,7 +789,7 @@ private static immutable ulong[80] K = [
   0x4cc5d4becb3e42b6UL, 0x597f299cfc657e2aUL, 0x5fcb6fab3ad6faecUL, 0x6c44198c4a475817UL
 ];
 
-void crypto_hashblocks (ubyte[] x, const(ubyte)[] m, ulong n) {
+private void crypto_hashblocks (ubyte[] x, const(ubyte)[] m, ulong n) {
   ulong[8] z, b, a;
   ulong[16] w;
   ulong t;
@@ -566,7 +833,19 @@ private static immutable ubyte[64] iv = [
   0x5b, 0xe0, 0xcd, 0x19, 0x13, 0x7e, 0x21, 0x79
 ];
 
+/**
+ * The crypto_hash() function hashes a message 'm'.
+ * It returns a hash 'out_'. The output length of 'out_' should be at least crypto_hash_BYTES.
+ *
+ * Params:
+ *  out_ = resulting hash
+ *  m = message
+ *
+ * Returns:
+ *  sha512 hash
+ */
 void crypto_hash (ubyte[] out_, const(ubyte)[] m) {
+  assert(out_.length >= crypto_hash_BYTES);
   ubyte[64] h;
   ubyte[256] x;
   size_t n = m.length;
@@ -652,7 +931,20 @@ private void scalarbase (ref long[16][4] p, const(ubyte)[] s) {
   scalarmult(p, q, s);
 }
 
+/**
+ * The crypto_sign_keypair() function randomly generates a secret key and
+ * a corresponding public key.
+ *
+ * Params:
+ *  pk = slice to put generated public key into
+ *  sk = slice to put generated secret key into
+ *
+ * Returns:
+ *  pair of new keys
+ */
 void crypto_sign_keypair (ubyte[] pk, ubyte[] sk) {
+  assert(pk.length >= crypto_sign_PUBLICKEYBYTES);
+  assert(sk.length >= crypto_sign_SECRETKEYBYTES);
   ubyte d[64];
   long[16][4] p;
 
@@ -703,8 +995,19 @@ private void reduce (ubyte[] r) {
   modL(r, x);
 }
 
+/**
+ * The crypto_sign() function signs a message 'm' using the sender's secret key 'sk'.
+ * The crypto_sign() function returns the resulting signed message.
+ *
+ * Params:
+ *  m == message
+ *  sk == secret key, slice size must be at least crypto_sign_SECRETKEYBYTES, extra ignored
+ *
+ * Returns:
+ *  signed message
+ */
 ubyte[] crypto_sign (const(ubyte)[] m, const(ubyte)[] sk) {
-  assert(sk.length == crypto_sign_SECRETKEYBYTES);
+  assert(sk.length >= crypto_sign_SECRETKEYBYTES);
   ubyte[64] d, h, r;
   ulong[64] x;
   long[16][4] p;
@@ -773,6 +1076,18 @@ private bool unpackneg (ref long[16][4] r, const(ubyte)[] p) {
   return true;
 }
 
+/**
+ * The crypto_sign_open() function verifies the signature in
+ * 'sm' using the receiver's public key 'pk'.
+ * The crypto_sign_open() function returns the message.
+ *
+ * Params:
+ *  sm == signed message
+ *  pk == public key, slice size must be at least crypto_sign_PUBLICKEYBYTES, extra ignored
+ *
+ * Returns:
+ *  message
+ */
 ubyte[] crypto_sign_open (const(ubyte)[] sm, const(ubyte)[] pk) {
   assert(pk.length >= crypto_sign_PUBLICKEYBYTES);
   ubyte[32] t;

@@ -11,6 +11,26 @@
  */
 module tweetNaCl;
 
+// define tweetnacl_enable_inlining to speed up tweetNaCl on GDC
+version(GNU) {
+  version(tweetnacl_enable_inlining) version=tweetnacl_enable_inlining_on_;
+  else version=tweetnacl_enable_inlining_off_;
+} else {
+  version=tweetnacl_enable_inlining_off_;
+}
+
+version(tweetnacl_enable_inlining_off_) {
+  private struct tweetNaCl_gdc_Attribute(A...) {
+    A args;
+  }
+  auto tweetNaCl_gdc_attribute(A...)(A args) if(A.length > 0 && is(A[0] == string)) {
+    return tweetNaCl_gdc_Attribute!A(args);
+  }
+} else {
+  import gcc.attribute;
+  alias tweetNaCl_gdc_attribute = attribute;
+}
+
 
 enum {
   crypto_auth_BYTES = 32,
@@ -80,30 +100,30 @@ private static immutable long[16]
   Y = [0x6658, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666],
   I = [0xa0b0, 0x4a0e, 0x1b27, 0xc4ee, 0xe478, 0xad2f, 0x1806, 0x2f43, 0xd7a7, 0x3dfb, 0x0099, 0x2b4d, 0xdf0b, 0x4fc1, 0x2480, 0x2b83];
 
-private uint L32 (uint x, int c) { return (x<<c)|((x&0xffffffff)>>(32-c)); }
+private @tweetNaCl_gdc_attribute("forceinline") uint L32() (uint x, int c) { return (x<<c)|((x&0xffffffff)>>(32-c)); }
 
-private uint ld32 (const(ubyte)[] x) {
+private @tweetNaCl_gdc_attribute("forceinline") uint ld32() (const(ubyte)[] x) {
   uint u = x[3];
   u = (u<<8)|x[2];
   u = (u<<8)|x[1];
   return (u<<8)|x[0];
 }
 
-private ulong dl64 (const(ubyte)[] x) {
+private @tweetNaCl_gdc_attribute("forceinline") ulong dl64() (const(ubyte)[] x) {
   ulong u = 0;
   for (auto i = 0; i < 8; ++i) u = (u<<8)|x[i];
   return u;
 }
 
-private void st32 (ubyte[] x, uint u) {
+private @tweetNaCl_gdc_attribute("forceinline") void st32() (ubyte[] x, uint u) {
   for (auto i = 0; i < 4; ++i) { x[i] = cast(ubyte)(u&0xff); u >>= 8; }
 }
 
-private void ts64 (ubyte[] x, ulong u) {
+private @tweetNaCl_gdc_attribute("forceinline") void ts64() (ubyte[] x, ulong u) {
   for (auto i = 7; i >= 0; --i) { x[i] = cast(ubyte)(u&0xff); u >>= 8; }
 }
 
-private int vn (const(ubyte)[] x, const(ubyte)[] y, int n) {
+private @tweetNaCl_gdc_attribute("forceinline") int vn() (const(ubyte)[] x, const(ubyte)[] y, int n) {
   uint d = 0;
   for (auto i = 0; i < n; ++i) d |= x[i]^y[i];
   return (1&((d-1)>>8))-1;
@@ -119,7 +139,7 @@ private int vn (const(ubyte)[] x, const(ubyte)[] y, int n) {
  * Returns:
  *  success flag
  */
-bool crypto_verify_16 (const(ubyte)[] x, const(ubyte)[] y) {
+@tweetNaCl_gdc_attribute("forceinline") bool crypto_verify_16() (const(ubyte)[] x, const(ubyte)[] y) {
   return (vn(x, y, 16) == 0);
 }
 
@@ -133,7 +153,7 @@ bool crypto_verify_16 (const(ubyte)[] x, const(ubyte)[] y) {
  * Returns:
  *  success flag
  */
-bool crypto_verify_32 (const(ubyte)[] x, const(ubyte)[] y) {
+@tweetNaCl_gdc_attribute("forceinline") bool crypto_verify_32() (const(ubyte)[] x, const(ubyte)[] y) {
   return (vn(x, y, 32) == 0);
 }
 
@@ -177,11 +197,11 @@ private void core (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(uby
     for (auto i = 0; i < 16; ++i)  st32(out_[4*i..$], x[i] + y[i]);
 }
 
-private void crypto_core_salsa20 (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c) {
+@tweetNaCl_gdc_attribute("forceinline") void crypto_core_salsa20() (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c) {
   core(out_, in_, k, c, 0);
 }
 
-private void crypto_core_hsalsa20 (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c) {
+@tweetNaCl_gdc_attribute("forceinline") void crypto_core_hsalsa20() (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c) {
   core(out_, in_, k, c, 1);
 }
 
@@ -242,7 +262,7 @@ void crypto_stream_salsa20_xor (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, c
  * Returns:
  *  ciphertext in 'c'
  */
-void crypto_stream_salsa20 (ubyte[] c, const(ubyte)[] n, const(ubyte)[] k) {
+void crypto_stream_salsa20() (ubyte[] c, const(ubyte)[] n, const(ubyte)[] k) {
   assert(n.length == crypto_stream_salsa20_NONCEBYTES);
   assert(k.length == crypto_stream_salsa20_KEYBYTES);
   crypto_stream_salsa20_xor(c, null, n, k);
@@ -260,7 +280,7 @@ void crypto_stream_salsa20 (ubyte[] c, const(ubyte)[] n, const(ubyte)[] k) {
  * Returns:
  *  stream in 'c'
  */
-void crypto_stream (ubyte[] c, const(ubyte)[] n, const(ubyte)[] k) {
+void crypto_stream() (ubyte[] c, const(ubyte)[] n, const(ubyte)[] k) {
   assert(c !is null);
   assert(n.length == crypto_stream_NONCEBYTES);
   assert(k.length == crypto_stream_KEYBYTES);
@@ -281,7 +301,7 @@ void crypto_stream (ubyte[] c, const(ubyte)[] n, const(ubyte)[] k) {
  * Returns:
  *  ciphertext in 'c'
  */
-void crypto_stream_xor (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] k) {
+void crypto_stream_xor() (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] k) {
   assert(c !is null);
   assert(m.length >= c.length);
   assert(n.length == crypto_stream_NONCEBYTES);
@@ -291,7 +311,7 @@ void crypto_stream_xor (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(uby
   crypto_stream_salsa20_xor(c, m, n[16..$], s);
 }
 
-private void add1305 (uint[] h, const(uint)[] c) {
+private @tweetNaCl_gdc_attribute("forceinline") void add1305() (uint[] h, const(uint)[] c) {
   uint u = 0;
   for (auto j = 0; j < 17; ++j)  {
     u += h[j] + c[j];
@@ -314,7 +334,7 @@ private static immutable uint[17] minusp = [5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,252]
  * Returns:
  *  authenticator in 'out_'
  */
-void crypto_onetimeauth (ubyte[] out_, const(ubyte)[] m, const(ubyte)[] k) {
+void crypto_onetimeauth() (ubyte[] out_, const(ubyte)[] m, const(ubyte)[] k) {
   assert(k.length >= crypto_onetimeauth_KEYBYTES);
   assert(out_.length >= crypto_onetimeauth_BYTES);
   uint s, i, j, u;
@@ -383,7 +403,7 @@ void crypto_onetimeauth (ubyte[] out_, const(ubyte)[] m, const(ubyte)[] k) {
  * Returns:
  *  success flag
  */
-bool crypto_onetimeauth_verify (const(ubyte)[] h, const(ubyte)[] m, const(ubyte)[] k) {
+bool crypto_onetimeauth_verify() (const(ubyte)[] h, const(ubyte)[] m, const(ubyte)[] k) {
   assert(h.length >= crypto_onetimeauth_BYTES);
   assert(k.length >= crypto_onetimeauth_KEYBYTES);
   ubyte x[16];
@@ -404,7 +424,7 @@ bool crypto_onetimeauth_verify (const(ubyte)[] h, const(ubyte)[] m, const(ubyte)
  * Returns:
  *  success flag and cyphertext in 'c'
  */
-bool crypto_secretbox (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] k) {
+bool crypto_secretbox() (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] k) {
   assert(k.length >= crypto_secretbox_KEYBYTES);
   assert(n.length >= crypto_secretbox_NONCEBYTES);
   //c.length = m.length+crypto_secretbox_ZEROBYTES;
@@ -431,7 +451,7 @@ bool crypto_secretbox (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyt
  * Returns:
  *  success flag and message in 'm'
  */
-bool crypto_secretbox_open (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, const(ubyte)[] k) {
+bool crypto_secretbox_open() (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, const(ubyte)[] k) {
   assert(k.length >= crypto_secretbox_KEYBYTES);
   assert(n.length >= crypto_secretbox_NONCEBYTES);
   ubyte x[32];
@@ -443,11 +463,11 @@ bool crypto_secretbox_open (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, const
   return true;
 }
 
-private void set25519 (long[/*16*/] r, const(long)[/*16*/] a) {
+private @tweetNaCl_gdc_attribute("forceinline") void set25519() (long[/*16*/] r, const(long)[/*16*/] a) {
   for (auto i = 0; i < 16; ++i)  r[i]=a[i];
 }
 
-private void car25519 (long[] o) {
+private @tweetNaCl_gdc_attribute("forceinline") void car25519() (long[] o) {
   long c;
   for (auto i = 0; i < 16; ++i)  {
     o[i]+=(1<<16);
@@ -457,7 +477,7 @@ private void car25519 (long[] o) {
   }
 }
 
-private void sel25519 (long[] p,long[] q, int b) {
+private @tweetNaCl_gdc_attribute("forceinline") void sel25519() (long[] p,long[] q, int b) {
   long t, c=~(b-1);
   for (auto i = 0; i < 16; ++i)  {
     t= c&(p[i]^q[i]);
@@ -466,7 +486,7 @@ private void sel25519 (long[] p,long[] q, int b) {
   }
 }
 
-private void pack25519 (ubyte[] o, const(long)[] n) {
+private @tweetNaCl_gdc_attribute("forceinline") void pack25519() (ubyte[] o, const(long)[] n) {
   int b;
   long[16] m, t;
   for (auto i = 0; i < 16; ++i)  t[i]=n[i];
@@ -490,33 +510,33 @@ private void pack25519 (ubyte[] o, const(long)[] n) {
   }
 }
 
-private bool neq25519 (const(long)[] a, const(long)[] b) {
+private @tweetNaCl_gdc_attribute("forceinline") bool neq25519() (const(long)[] a, const(long)[] b) {
   ubyte[32] c, d;
   pack25519(c, a);
   pack25519(d, b);
   return crypto_verify_32(c, d);
 }
 
-private ubyte par25519 (const(long)[] a) {
+private @tweetNaCl_gdc_attribute("forceinline") ubyte par25519() (const(long)[] a) {
   ubyte d[32];
   pack25519(d, a);
   return d[0]&1;
 }
 
-private void unpack25519 (long[] o, const(ubyte)[] n) {
+private @tweetNaCl_gdc_attribute("forceinline") void unpack25519() (long[] o, const(ubyte)[] n) {
   for (auto i = 0; i < 16; ++i) o[i]=n[2*i]+(cast(long)n[2*i+1]<<8);
   o[15]&=0x7fff;
 }
 
-private void A (long[] o, const(long)[] a, const(long)[] b) {
+private @tweetNaCl_gdc_attribute("forceinline") void A() (long[] o, const(long)[] a, const(long)[] b) {
   for (auto i = 0; i < 16; ++i)  o[i]=a[i]+b[i];
 }
 
-private void Z (long[] o, const(long)[] a, const(long)[] b) {
+private @tweetNaCl_gdc_attribute("forceinline") void Z() (long[] o, const(long)[] a, const(long)[] b) {
   for (auto i = 0; i < 16; ++i)  o[i]=a[i]-b[i];
 }
 
-private void M (long[] o, const(long)[] a, const(long)[] b) {
+private @tweetNaCl_gdc_attribute("forceinline") void M() (long[] o, const(long)[] a, const(long)[] b) {
   long[31] t;
   for (auto i = 0; i < 31; ++i)  t[i]=0;
   for (auto i = 0; i < 16; ++i)  for (auto j = 0; j < 16; ++j)  t[i+j]+=a[i]*b[j];
@@ -526,11 +546,11 @@ private void M (long[] o, const(long)[] a, const(long)[] b) {
   car25519(o);
 }
 
-private void S (long[] o, const(long)[] a) {
+private @tweetNaCl_gdc_attribute("forceinline") void S() (long[] o, const(long)[] a) {
   M(o, a, a);
 }
 
-private void inv25519 (long[] o, const(long)[] i) {
+private @tweetNaCl_gdc_attribute("forceinline") void inv25519() (long[] o, const(long)[] i) {
   long[16] c;
   for (auto a = 0; a < 16; ++a)  c[a]=i[a];
   for(auto a=253;a>=0;a--) {
@@ -540,7 +560,7 @@ private void inv25519 (long[] o, const(long)[] i) {
   for (auto a = 0; a < 16; ++a)  o[a]=c[a];
 }
 
-private void pow2523 (long[] o, const(long)[] i) {
+private @tweetNaCl_gdc_attribute("forceinline") void pow2523() (long[] o, const(long)[] i) {
   long[16] c;
   for (auto a = 0; a < 16; ++a)  c[a]=i[a];
   for(auto a=250;a>=0;a--) {
@@ -624,7 +644,7 @@ void crypto_scalarmult (ubyte[] q, const(ubyte)[] n, const(ubyte)[] p) {
  * Returns:
  *  resulting group element 'q' of length crypto_scalarmult_BYTES.
  */
-void crypto_scalarmult_base (ubyte[] q, const(ubyte)[] n) {
+void crypto_scalarmult_base() (ubyte[] q, const(ubyte)[] n) {
   assert(q.length == crypto_scalarmult_BYTES);
   assert(n.length == crypto_scalarmult_SCALARBYTES);
   crypto_scalarmult(q, n, _9);
@@ -641,7 +661,7 @@ void crypto_scalarmult_base (ubyte[] q, const(ubyte)[] n) {
  * Returns:
  *  pair of new keys
  */
-void crypto_box_keypair (ubyte[] pk, ubyte[] sk) {
+void crypto_box_keypair() (ubyte[] pk, ubyte[] sk) {
   assert(pk.length >= crypto_box_PUBLICKEYBYTES);
   assert(sk.length >= crypto_box_SECRETKEYBYTES);
   randombytes(sk, 32);
@@ -660,7 +680,7 @@ void crypto_box_keypair (ubyte[] pk, ubyte[] sk) {
  * Returns:
  *  generated secret
  */
-void crypto_box_beforenm (ubyte[] k, const(ubyte)[] pk, const(ubyte)[] sk) {
+void crypto_box_beforenm() (ubyte[] k, const(ubyte)[] pk, const(ubyte)[] sk) {
   assert(pk.length >= crypto_box_PUBLICKEYBYTES);
   assert(sk.length >= crypto_box_SECRETKEYBYTES);
   assert(k.length >= crypto_box_BEFORENMBYTES);
@@ -683,7 +703,7 @@ void crypto_box_beforenm (ubyte[] k, const(ubyte)[] pk, const(ubyte)[] sk) {
  * Returns:
  *  success flag and cyphertext in 'c'
  */
-bool crypto_box_afternm (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] k) {
+bool crypto_box_afternm() (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] k) {
   assert(n.length >=  crypto_box_NONCEBYTES);
   assert(k.length >= crypto_box_BEFORENMBYTES);
   return crypto_secretbox(c, m, n, k);
@@ -703,7 +723,7 @@ bool crypto_box_afternm (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ub
  * Returns:
  *  success flag and resulting message in 'm'
  */
-bool crypto_box_open_afternm (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, const(ubyte)[] k) {
+bool crypto_box_open_afternm() (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, const(ubyte)[] k) {
   assert(n.length >=  crypto_box_NONCEBYTES);
   assert(k.length >= crypto_box_BEFORENMBYTES);
   return crypto_secretbox_open(m, c, n, k);
@@ -724,7 +744,7 @@ bool crypto_box_open_afternm (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, con
  * Returns:
  *  success flag and cyphertext in 'c'
  */
-bool crypto_box (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] pk, const(ubyte)[] sk) {
+bool crypto_box() (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] pk, const(ubyte)[] sk) {
   assert(n.length >= crypto_box_NONCEBYTES);
   assert(pk.length >= crypto_box_PUBLICKEYBYTES);
   assert(sk.length >= crypto_box_SECRETKEYBYTES);
@@ -749,7 +769,7 @@ bool crypto_box (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] p
  * Returns:
  *  success flag and message in 'm'
  */
-bool crypto_box_open (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, const(ubyte)[] pk, const(ubyte)[] sk) {
+bool crypto_box_open() (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, const(ubyte)[] pk, const(ubyte)[] sk) {
   assert(n.length >= crypto_box_NONCEBYTES);
   assert(pk.length >= crypto_box_PUBLICKEYBYTES);
   assert(sk.length >= crypto_box_SECRETKEYBYTES);
@@ -758,13 +778,13 @@ bool crypto_box_open (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, const(ubyte
   return crypto_box_open_afternm(m, c, n, k);
 }
 
-private ulong R (ulong x, int c) { return (x >> c) | (x << (64 - c)); }
-private ulong Ch (ulong x, ulong y, ulong z) { return (x & y) ^ (~x & z); }
-private ulong Maj (ulong x, ulong y, ulong z) { return (x & y) ^ (x & z) ^ (y & z); }
-private ulong Sigma0 (ulong x) { return R(x, 28) ^ R(x, 34) ^ R(x, 39); }
-private ulong Sigma1 (ulong x) { return R(x, 14) ^ R(x, 18) ^ R(x, 41); }
-private ulong sigma0 (ulong x) { return R(x, 1) ^ R(x, 8) ^ (x >> 7); }
-private ulong sigma1 (ulong x) { return R(x, 19) ^ R(x, 61) ^ (x >> 6); }
+private @tweetNaCl_gdc_attribute("forceinline") ulong R() (ulong x, int c) { return (x >> c) | (x << (64 - c)); }
+private @tweetNaCl_gdc_attribute("forceinline") ulong Ch() (ulong x, ulong y, ulong z) { return (x & y) ^ (~x & z); }
+private @tweetNaCl_gdc_attribute("forceinline") ulong Maj() (ulong x, ulong y, ulong z) { return (x & y) ^ (x & z) ^ (y & z); }
+private @tweetNaCl_gdc_attribute("forceinline") ulong Sigma0() (ulong x) { return R(x, 28) ^ R(x, 34) ^ R(x, 39); }
+private @tweetNaCl_gdc_attribute("forceinline") ulong Sigma1() (ulong x) { return R(x, 14) ^ R(x, 18) ^ R(x, 41); }
+private @tweetNaCl_gdc_attribute("forceinline") ulong sigma0() (ulong x) { return R(x, 1) ^ R(x, 8) ^ (x >> 7); }
+private @tweetNaCl_gdc_attribute("forceinline") ulong sigma1() (ulong x) { return R(x, 19) ^ R(x, 61) ^ (x >> 6); }
 
 private static immutable ulong[80] K = [
   0x428a2f98d728ae22UL, 0x7137449123ef65cdUL, 0xb5c0fbcfec4d3b2fUL, 0xe9b5dba58189dbbcUL,
@@ -844,7 +864,7 @@ private static immutable ubyte[64] iv = [
  * Returns:
  *  sha512 hash
  */
-void crypto_hash (ubyte[] out_, const(ubyte)[] m) {
+void crypto_hash() (ubyte[] out_, const(ubyte)[] m) {
   assert(out_.length >= crypto_hash_BYTES);
   ubyte[64] h;
   ubyte[256] x;
@@ -871,7 +891,7 @@ void crypto_hash (ubyte[] out_, const(ubyte)[] m) {
   for (auto i = 0; i < 64; ++i)  out_[i] = h[i];
 }
 
-private void add (ref long[16][4] p, ref long[16][4] q) {
+private @tweetNaCl_gdc_attribute("forceinline") void add() (ref long[16][4] p, ref long[16][4] q) {
   long[16] a, b, c, d, t, e, f, g, h;
 
   Z(a, p[1], p[0]);
@@ -895,11 +915,11 @@ private void add (ref long[16][4] p, ref long[16][4] q) {
   M(p[3], e, h);
 }
 
-private void cswap (ref long[16][4] p, ref long[16][4] q, ubyte b) {
+private @tweetNaCl_gdc_attribute("forceinline") void cswap() (ref long[16][4] p, ref long[16][4] q, ubyte b) {
   for (auto i = 0; i < 4; ++i) sel25519(p[i], q[i], b);
 }
 
-private void pack (ubyte[] r, ref long[16][4] p) {
+private @tweetNaCl_gdc_attribute("forceinline") void pack() (ubyte[] r, ref long[16][4] p) {
   long[16] tx, ty, zi;
   inv25519(zi, p[2]);
   M(tx, p[0], zi);
@@ -908,7 +928,7 @@ private void pack (ubyte[] r, ref long[16][4] p) {
   r[31] ^= par25519(tx) << 7;
 }
 
-private void scalarmult (ref long[16][4] p, ref long[16][4] q, const(ubyte)[] s) {
+private @tweetNaCl_gdc_attribute("forceinline") void scalarmult() (ref long[16][4] p, ref long[16][4] q, const(ubyte)[] s) {
   set25519(p[0], gf0);
   set25519(p[1], gf1);
   set25519(p[2], gf1);
@@ -922,7 +942,7 @@ private void scalarmult (ref long[16][4] p, ref long[16][4] q, const(ubyte)[] s)
   }
 }
 
-private void scalarbase (ref long[16][4] p, const(ubyte)[] s) {
+private @tweetNaCl_gdc_attribute("forceinline") void scalarbase() (ref long[16][4] p, const(ubyte)[] s) {
   long[16][4] q;
   set25519(q[0], X);
   set25519(q[1], Y);
@@ -942,7 +962,7 @@ private void scalarbase (ref long[16][4] p, const(ubyte)[] s) {
  * Returns:
  *  pair of new keys
  */
-void crypto_sign_keypair (ubyte[] pk, ubyte[] sk) {
+void crypto_sign_keypair() (ubyte[] pk, ubyte[] sk) {
   assert(pk.length >= crypto_sign_PUBLICKEYBYTES);
   assert(sk.length >= crypto_sign_SECRETKEYBYTES);
   ubyte d[64];
@@ -962,7 +982,7 @@ void crypto_sign_keypair (ubyte[] pk, ubyte[] sk) {
 
 private static immutable ulong[32] L = [0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10];
 
-private void modL (ubyte[] r, long[] x) {
+private @tweetNaCl_gdc_attribute("forceinline") void modL() (ubyte[] r, long[] x) {
   long carry;
   for (auto i = 63;i >= 32;--i) {
     int j;
@@ -988,7 +1008,7 @@ private void modL (ubyte[] r, long[] x) {
   }
 }
 
-private void reduce (ubyte[] r) {
+private @tweetNaCl_gdc_attribute("forceinline") void reduce() (ubyte[] r) {
   long[64] x;
   for (auto i = 0; i < 64; ++i)  x[i] = cast(ulong) r[i];
   for (auto i = 0; i < 64; ++i)  r[i] = 0;
@@ -1006,7 +1026,7 @@ private void reduce (ubyte[] r) {
  * Returns:
  *  signed message
  */
-ubyte[] crypto_sign (const(ubyte)[] m, const(ubyte)[] sk) {
+ubyte[] crypto_sign() (const(ubyte)[] m, const(ubyte)[] sk) {
   assert(sk.length >= crypto_sign_SECRETKEYBYTES);
   ubyte[64] d, h, r;
   ulong[64] x;
@@ -1041,7 +1061,7 @@ ubyte[] crypto_sign (const(ubyte)[] m, const(ubyte)[] sk) {
   return sm;
 }
 
-private bool unpackneg (ref long[16][4] r, const(ubyte)[] p) {
+private @tweetNaCl_gdc_attribute("forceinline") bool unpackneg() (ref long[16][4] r, const(ubyte)[] p) {
   long[16] t, chk, num, den, den2, den4, den6;
   set25519(r[2], gf1);
   unpack25519(r[1], p);
@@ -1088,7 +1108,7 @@ private bool unpackneg (ref long[16][4] r, const(ubyte)[] p) {
  * Returns:
  *  message
  */
-ubyte[] crypto_sign_open (const(ubyte)[] sm, const(ubyte)[] pk) {
+ubyte[] crypto_sign_open() (const(ubyte)[] sm, const(ubyte)[] pk) {
   assert(pk.length >= crypto_sign_PUBLICKEYBYTES);
   ubyte[32] t;
   ubyte[64] h;
@@ -2330,6 +2350,5 @@ unittest {
     for (auto i = 32;i < 163;++i) assert(c[i] == res[i-32]);
   }
   stream4();
-
 }
-version(unittest) void main () {}
+//version(unittest) void main () {}

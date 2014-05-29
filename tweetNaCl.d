@@ -704,7 +704,7 @@ void crypto_box_beforenm() (ubyte[] k, const(ubyte)[] pk, const(ubyte)[] sk) {
  *  success flag and cyphertext in 'c'
  */
 bool crypto_box_afternm() (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] k) {
-  assert(n.length >=  crypto_box_NONCEBYTES);
+  assert(n.length >= crypto_box_NONCEBYTES);
   assert(k.length >= crypto_box_BEFORENMBYTES);
   return crypto_secretbox(c, m, n, k);
 }
@@ -724,7 +724,7 @@ bool crypto_box_afternm() (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(
  *  success flag and resulting message in 'm'
  */
 bool crypto_box_open_afternm() (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, const(ubyte)[] k) {
-  assert(n.length >=  crypto_box_NONCEBYTES);
+  assert(n.length >= crypto_box_NONCEBYTES);
   assert(k.length >= crypto_box_BEFORENMBYTES);
   return crypto_secretbox_open(m, c, n, k);
 }
@@ -758,7 +758,7 @@ bool crypto_box() (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[]
  * a ciphertext 'c' using the receiver's secret key 'sk',
  * the sender's public key 'pk', and a nonce 'n'.
  * The crypto_box_open() function returns the resulting message 'm'.
-
+ *
  * Params:
  *  m = resulting message
  *  c = cyphertext
@@ -1020,21 +1020,21 @@ private @tweetNaCl_gdc_attribute("forceinline") void reduce() (ubyte[] r) {
  * The crypto_sign() function returns the resulting signed message.
  *
  * Params:
+ *  sm = buffer to receive signed message, must be of size at least m.length+64
  *  m == message
  *  sk == secret key, slice size must be at least crypto_sign_SECRETKEYBYTES, extra ignored
  *
  * Returns:
  *  signed message
  */
-ubyte[] crypto_sign() (const(ubyte)[] m, const(ubyte)[] sk) {
+void crypto_sign() (ubyte[] sm, const(ubyte)[] m, const(ubyte)[] sk) {
   assert(sk.length >= crypto_sign_SECRETKEYBYTES);
   ubyte[64] d, h, r;
   ulong[64] x;
   long[16][4] p;
-  ubyte[] sm;
   size_t n = m.length;
   size_t smlen = n+64;
-  sm.length = smlen;
+  assert(sm.length >= smlen);
 
   crypto_hash(d, sk[0..32]);
   d[0] &= 248;
@@ -1057,7 +1057,26 @@ ubyte[] crypto_sign() (const(ubyte)[] m, const(ubyte)[] sk) {
   for (auto i = 0; i < 32; ++i)  x[i] = cast(ulong)r[i];
   for (auto i = 0; i < 32; ++i)  for (auto j = 0; j < 32; ++j)  x[i+j] += h[i]*cast(ulong)d[j];
   modL(sm[32..$], cast(long[])x);
+}
 
+/**
+ * The crypto_sign() function signs a message 'm' using the sender's secret key 'sk'.
+ * The crypto_sign() function returns the resulting signed message.
+ *
+ * Params:
+ *  m == message
+ *  sk == secret key, slice size must be at least crypto_sign_SECRETKEYBYTES, extra ignored
+ *
+ * Returns:
+ *  signed message
+ */
+ubyte[] crypto_sign() (const(ubyte)[] m, const(ubyte)[] sk) {
+  assert(sk.length >= crypto_sign_SECRETKEYBYTES);
+  ubyte[] sm;
+  size_t n = m.length;
+  size_t smlen = n+64;
+  sm.length = smlen;
+  crypto_sign(sm, m, sk);
   return sm;
 }
 
@@ -2351,4 +2370,8 @@ unittest {
   }
   stream4();
 }
-//version(unittest) void main () {}
+version(unittest) {
+  version(unittest_main) {
+    void main () {}
+  }
+}

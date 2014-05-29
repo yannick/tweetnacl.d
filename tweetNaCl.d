@@ -1118,30 +1118,28 @@ private @tweetNaCl_gdc_attribute("forceinline") bool unpackneg() (ref long[16][4
 /**
  * The crypto_sign_open() function verifies the signature in
  * 'sm' using the receiver's public key 'pk'.
- * The crypto_sign_open() function returns the message.
  *
  * Params:
+ *  m = decrypted message, last 64 bytes are useless zeroes, must be of size at least sm.length
  *  sm == signed message
  *  pk == public key, slice size must be at least crypto_sign_PUBLICKEYBYTES, extra ignored
  *
  * Returns:
- *  message
+ *  success flag
  */
-ubyte[] crypto_sign_open() (const(ubyte)[] sm, const(ubyte)[] pk) {
+bool crypto_sign_open() (ubyte[] m, const(ubyte)[] sm, const(ubyte)[] pk) {
   assert(pk.length >= crypto_sign_PUBLICKEYBYTES);
   ubyte[32] t;
   ubyte[64] h;
   long[16][4] p, q;
-  ubyte[] m;
   size_t n = sm.length;
+  assert(m.length >= n);
 
-  if (n < 64) return null;
+  if (n < 64) return false;
 
-  if (!unpackneg(q, pk)) return null;
-
-  m.length = n;
-  for (auto i = 0; i < n; ++i)  m[i] = sm[i];
-  for (auto i = 0; i < 32; ++i)  m[i+32] = pk[i];
+  if (!unpackneg(q, pk)) return false;
+  for (auto i = 0; i < n; ++i) m[i] = sm[i];
+  for (auto i = 0; i < 32; ++i) m[i+32] = pk[i];
   crypto_hash(h, m/*, n*/);
   reduce(h);
   scalarmult(p, q, h);
@@ -1152,13 +1150,34 @@ ubyte[] crypto_sign_open() (const(ubyte)[] sm, const(ubyte)[] pk) {
 
   n -= 64;
   if (!crypto_verify_32(sm, t)) {
-    for (auto i = 0; i < n; ++i)  m[i] = 0;
-    return null;
+    for (auto i = 0; i < n; ++i) m[i] = 0;
+    return false;
   }
 
-  for (auto i = 0; i < n; ++i)  m[i] = sm[i + 64];
+  for (auto i = 0; i < n; ++i)  m[i] = sm[i+64];
+  for (auto i = n; i < n+64; ++i)  m[i] = 0;
 
-  return m[0..n]; // remove signature
+  return true;
+}
+
+
+/**
+ * The crypto_sign_open() function verifies the signature in
+ * 'sm' using the receiver's public key 'pk'.
+ * The crypto_sign_open() function returns the message.
+ *
+ * Params:
+ *  sm == signed message
+ *  pk == public key, slice size must be at least crypto_sign_PUBLICKEYBYTES, extra ignored
+ *
+ * Returns:
+ *  decrypted message or null on error
+ */
+ubyte[] crypto_sign_open() (const(ubyte)[] sm, const(ubyte)[] pk) {
+  ubyte[] m;
+  m.length = sm.length;
+  if (!crypto_sign_open(m, sm, pk)) return null;
+  return m[0..sm.length-64]; // remove signature
 }
 
 

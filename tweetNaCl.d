@@ -84,6 +84,8 @@ enum {
 }
 
 
+/// set this callback to good (cryptograpic strong) random bytes generator
+/// you can use /dev/urandom as prng
 void function (ubyte[] dest, size_t len) randombytes = null;
 
 

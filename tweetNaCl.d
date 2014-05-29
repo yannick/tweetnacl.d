@@ -162,39 +162,40 @@ private void core (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(uby
   uint[16] w, x, y;
   uint[4] t;
 
-  for (auto i = 0; i < 4; ++i)  {
+  for (auto i = 0; i < 4; ++i) {
     x[5*i] = ld32(c[4*i..$]);
     x[1+i] = ld32(k[4*i..$]);
     x[6+i] = ld32(in_[4*i..$]);
     x[11+i] = ld32(k[16+4*i..$]);
   }
 
-  for (auto i = 0; i < 16; ++i)  y[i] = x[i];
+  for (auto i = 0; i < 16; ++i) y[i] = x[i];
 
-  for (auto i = 0; i < 20; ++i)  {
-    for (auto j = 0; j < 4; ++j)  {
-      for (auto m = 0; m < 4; ++m)  t[m] = x[(5*j+4*m)%16];
+  for (auto i = 0; i < 20; ++i) {
+    for (auto j = 0; j < 4; ++j) {
+      for (auto m = 0; m < 4; ++m) t[m] = x[(5*j+4*m)%16];
       t[1] ^= L32(t[0]+t[3], 7);
       t[2] ^= L32(t[1]+t[0], 9);
       t[3] ^= L32(t[2]+t[1], 13);
       t[0] ^= L32(t[3]+t[2], 18);
-      for (auto m = 0; m < 4; ++m)  w[4*j+(j+m)%4] = t[m];
+      for (auto m = 0; m < 4; ++m) w[4*j+(j+m)%4] = t[m];
     }
-    for (auto m = 0; m < 16; ++m)  x[m] = w[m];
+    for (auto m = 0; m < 16; ++m) x[m] = w[m];
   }
 
   if (h) {
-    for (auto i = 0; i < 16; ++i)  x[i] += y[i];
-    for (auto i = 0; i < 4; ++i)  {
+    for (auto i = 0; i < 16; ++i) x[i] += y[i];
+    for (auto i = 0; i < 4; ++i) {
       x[5*i] -= ld32(c[4*i..$]);
       x[6+i] -= ld32(in_[4*i..$]);
     }
-    for (auto i = 0; i < 4; ++i)  {
+    for (auto i = 0; i < 4; ++i) {
       st32(out_[4*i..$], x[5*i]);
       st32(out_[16+4*i..$], x[6+i]);
     }
-  } else
-    for (auto i = 0; i < 16; ++i)  st32(out_[4*i..$], x[i] + y[i]);
+  } else {
+    for (auto i = 0; i < 16; ++i) st32(out_[4*i..$], x[i]+y[i]);
+  }
 }
 
 @tweetNaCl_gdc_attribute("forceinline") void crypto_core_salsa20() (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c) {
@@ -229,11 +230,11 @@ void crypto_stream_salsa20_xor (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, c
   uint cpos = 0, mpos = 0;
   size_t b = c.length;
   if (!b) return;
-  for (auto i = 0; i < 16; ++i)  z[i] = 0; //FIXME
-  for (auto i = 0; i < 8; ++i)  z[i] = n[i];
+  for (auto i = 0; i < 16; ++i) z[i] = 0; //FIXME
+  for (auto i = 0; i < 8; ++i) z[i] = n[i];
   while (b >= 64) {
     crypto_core_salsa20(x, z, k, sigma);
-    for (auto i = 0; i < 64; ++i)  c[cpos+i] = (m !is null ? m[mpos+i] : 0) ^ x[i];
+    for (auto i = 0; i < 64; ++i) c[cpos+i] = (m !is null ? m[mpos+i] : 0)^x[i];
     u = 1;
     for (auto i = 8; i < 16; ++i) {
       u += cast(uint)z[i];
@@ -246,7 +247,7 @@ void crypto_stream_salsa20_xor (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, c
   }
   if (b) {
     crypto_core_salsa20(x, z, k, sigma);
-    for (auto i = 0; i < b; ++i)  c[cpos+i] = (m !is null ? m[mpos+i] : 0) ^ x[i];
+    for (auto i = 0; i < b; ++i) c[cpos+i] = (m !is null ? m[mpos+i] : 0)^x[i];
   }
 }
 
@@ -313,9 +314,9 @@ void crypto_stream_xor() (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(u
 
 private @tweetNaCl_gdc_attribute("forceinline") void add1305() (uint[] h, const(uint)[] c) {
   uint u = 0;
-  for (auto j = 0; j < 17; ++j)  {
-    u += h[j] + c[j];
-    h[j] = u & 255;
+  for (auto j = 0; j < 17; ++j) {
+    u += h[j]+c[j];
+    h[j] = u&255;
     u >>= 8;
   }
 }
@@ -342,8 +343,8 @@ void crypto_onetimeauth() (ubyte[] out_, const(ubyte)[] m, const(ubyte)[] k) {
   uint mpos = 0;
   size_t n = m.length;
 
-  for (j = 0; j < 17; ++j)  r[j]=h[j]=0;
-  for (j = 0; j < 16; ++j)  r[j]=k[j];
+  for (j = 0; j < 17; ++j) r[j] = h[j] = 0;
+  for (j = 0; j < 16; ++j) r[j] = k[j];
   r[3]&=15;
   r[4]&=252;
   r[7]&=15;
@@ -353,42 +354,43 @@ void crypto_onetimeauth() (ubyte[] out_, const(ubyte)[] m, const(ubyte)[] k) {
   r[15]&=15;
 
   while (n > 0) {
-    for (j = 0; j < 17; ++j)  c[j] = 0;
-    for (j = 0;(j < 16) && (j < n);++j) c[j] = m[mpos+j];
+    for (j = 0; j < 17; ++j) c[j] = 0;
+    for (j = 0; j < 16 && j < n; ++j) c[j] = m[mpos+j];
     c[j] = 1;
     mpos += j;
     n -= j;
     add1305(h, c);
-    for (i = 0; i < 17; ++i)  {
+    for (i = 0; i < 17; ++i) {
       x[i] = 0;
-      for (j = 0; j < 17; ++j)  x[i] += h[j] * ((j <= i) ? r[i - j] : 320 * r[i + 17 - j]);
+      for (j = 0; j < 17; ++j) x[i] += h[j]*(j <= i ? r[i-j] : 320*r[i+17-j]);
     }
-    for (i = 0; i < 17; ++i)  h[i] = x[i];
+    for (i = 0; i < 17; ++i) h[i] = x[i];
     u = 0;
-    for (j = 0; j < 16; ++j)  {
+    for (j = 0; j < 16; ++j) {
       u += h[j];
-      h[j] = u & 255;
+      h[j] = u&255;
       u >>= 8;
     }
-    u += h[16]; h[16] = u & 3;
-    u = 5 * (u >> 2);
-    for (j = 0; j < 16; ++j)  {
+    u += h[16];
+    h[16] = u&3;
+    u = 5*(u>>2);
+    for (j = 0; j < 16; ++j) {
       u += h[j];
-      h[j] = u & 255;
+      h[j] = u&255;
       u >>= 8;
     }
     u += h[16]; h[16] = u;
   }
 
-  for (j = 0; j < 17; ++j)  g[j] = h[j];
+  for (j = 0; j < 17; ++j) g[j] = h[j];
   add1305(h, minusp);
-  s = -(h[16] >> 7);
-  for (j = 0; j < 17; ++j)  h[j] ^= s & (g[j] ^ h[j]);
+  s = -(h[16]>>7);
+  for (j = 0; j < 17; ++j) h[j] ^= s&(g[j]^h[j]);
 
-  for (j = 0; j < 16; ++j)  c[j] = k[j + 16];
+  for (j = 0; j < 16; ++j) c[j] = k[j+16];
   c[16] = 0;
   add1305(h, c);
-  for (j = 0; j < 16; ++j)  out_[j] = cast(ubyte)(h[j]&0xff);
+  for (j = 0; j < 16; ++j) out_[j] = cast(ubyte)(h[j]&0xff);
 }
 
 /**
@@ -464,22 +466,22 @@ bool crypto_secretbox_open() (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, con
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void set25519() (long[/*16*/] r, const(long)[/*16*/] a) {
-  for (auto i = 0; i < 16; ++i)  r[i]=a[i];
+  for (auto i = 0; i < 16; ++i) r[i] = a[i];
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void car25519() (long[] o) {
   long c;
-  for (auto i = 0; i < 16; ++i)  {
+  for (auto i = 0; i < 16; ++i) {
     o[i]+=(1<<16);
-    c=o[i]>>16;
+    c = o[i]>>16;
     o[(i+1)*(i<15)]+=c-1+37*(c-1)*(i==15);
     o[i]-=c<<16;
   }
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void sel25519() (long[] p,long[] q, int b) {
-  long t, c=~(b-1);
-  for (auto i = 0; i < 16; ++i)  {
+  long t, c = ~(b-1);
+  for (auto i = 0; i < 16; ++i) {
     t= c&(p[i]^q[i]);
     p[i]^=t;
     q[i]^=t;
@@ -489,24 +491,24 @@ private @tweetNaCl_gdc_attribute("forceinline") void sel25519() (long[] p,long[]
 private @tweetNaCl_gdc_attribute("forceinline") void pack25519() (ubyte[] o, const(long)[] n) {
   int b;
   long[16] m, t;
-  for (auto i = 0; i < 16; ++i)  t[i]=n[i];
+  for (auto i = 0; i < 16; ++i) t[i] = n[i];
   car25519(t);
   car25519(t);
   car25519(t);
-  for (auto j = 0; j < 2; ++j)  {
-    m[0]=t[0]-0xffed;
-    for(auto i=1;i<15;i++) {
-      m[i]=t[i]-0xffff-((m[i-1]>>16)&1);
+  for (auto j = 0; j < 2; ++j) {
+    m[0] = t[0]-0xffed;
+    for(auto i = 1; i < 15; ++i) {
+      m[i] = t[i]-0xffff-((m[i-1]>>16)&1);
       m[i-1]&=0xffff;
     }
-    m[15]=t[15]-0x7fff-((m[14]>>16)&1);
-    b=(m[15]>>16)&1;
+    m[15] = t[15]-0x7fff-((m[14]>>16)&1);
+    b = (m[15]>>16)&1;
     m[14]&=0xffff;
     sel25519(t, m, 1-b);
   }
-  for (auto i = 0; i < 16; ++i)  {
-    o[2*i]=t[i]&0xff;
-    o[2*i+1]=(t[i]>>8)&0xff;
+  for (auto i = 0; i < 16; ++i) {
+    o[2*i] = t[i]&0xff;
+    o[2*i+1] = (t[i]>>8)&0xff;
   }
 }
 
@@ -524,24 +526,24 @@ private @tweetNaCl_gdc_attribute("forceinline") ubyte par25519() (const(long)[] 
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void unpack25519() (long[] o, const(ubyte)[] n) {
-  for (auto i = 0; i < 16; ++i) o[i]=n[2*i]+(cast(long)n[2*i+1]<<8);
+  for (auto i = 0; i < 16; ++i) o[i] = n[2*i]+(cast(long)n[2*i+1]<<8);
   o[15]&=0x7fff;
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void A() (long[] o, const(long)[] a, const(long)[] b) {
-  for (auto i = 0; i < 16; ++i)  o[i]=a[i]+b[i];
+  for (auto i = 0; i < 16; ++i) o[i] = a[i]+b[i];
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void Z() (long[] o, const(long)[] a, const(long)[] b) {
-  for (auto i = 0; i < 16; ++i)  o[i]=a[i]-b[i];
+  for (auto i = 0; i < 16; ++i) o[i] = a[i]-b[i];
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void M() (long[] o, const(long)[] a, const(long)[] b) {
   long[31] t;
-  for (auto i = 0; i < 31; ++i)  t[i]=0;
-  for (auto i = 0; i < 16; ++i)  for (auto j = 0; j < 16; ++j)  t[i+j]+=a[i]*b[j];
-  for (auto i = 0; i < 15; ++i)  t[i]+=38*t[i+16];
-  for (auto i = 0; i < 16; ++i)  o[i]=t[i];
+  for (auto i = 0; i < 31; ++i) t[i] = 0;
+  for (auto i = 0; i < 16; ++i) for (auto j = 0; j < 16; ++j) t[i+j]+=a[i]*b[j];
+  for (auto i = 0; i < 15; ++i) t[i]+=38*t[i+16];
+  for (auto i = 0; i < 16; ++i) o[i] = t[i];
   car25519(o);
   car25519(o);
 }
@@ -552,22 +554,22 @@ private @tweetNaCl_gdc_attribute("forceinline") void S() (long[] o, const(long)[
 
 private @tweetNaCl_gdc_attribute("forceinline") void inv25519() (long[] o, const(long)[] i) {
   long[16] c;
-  for (auto a = 0; a < 16; ++a)  c[a]=i[a];
-  for(auto a=253;a>=0;a--) {
+  for (auto a = 0; a < 16; ++a) c[a] = i[a];
+  for(auto a = 253; a >= 0; --a) {
     S(c, c);
-    if(a!=2&&a!=4) M(c, c, i);
+    if (a !=2 && a != 4) M(c, c, i);
   }
-  for (auto a = 0; a < 16; ++a)  o[a]=c[a];
+  for (auto a = 0; a < 16; ++a) o[a] = c[a];
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void pow2523() (long[] o, const(long)[] i) {
   long[16] c;
-  for (auto a = 0; a < 16; ++a)  c[a]=i[a];
-  for(auto a=250;a>=0;a--) {
+  for (auto a = 0; a < 16; ++a) c[a] = i[a];
+  for(auto a = 250; a >= 0; --a) {
     S(c, c);
-    if(a!=1) M(c, c, i);
+    if (a != 1) M(c, c, i);
   }
-  for (auto a = 0; a < 16; ++a)  o[a]=c[a];
+  for (auto a = 0; a < 16; ++a) o[a] = c[a];
 }
 
 /* FIXME!
@@ -589,17 +591,17 @@ void crypto_scalarmult (ubyte[] q, const(ubyte)[] n, const(ubyte)[] p) {
   long[80] x;
   long r;
   long[16] a, b, c, d, e, f;
-  for (i = 0; i < 31; ++i)  z[i]=n[i];
-  z[31]=(n[31]&127)|64;
+  for (i = 0; i < 31; ++i) z[i] = n[i];
+  z[31] = (n[31]&127)|64;
   z[0]&=248;
   unpack25519(x, p);
-  for (i = 0; i < 16; ++i)  {
-    b[i]=x[i];
-    d[i]=a[i]=c[i]=0;
+  for (i = 0; i < 16; ++i) {
+    b[i] = x[i];
+    d[i] = a[i] = c[i] = 0;
   }
-  a[0]=d[0]=1;
-  for(i=254;i>=0;--i) {
-    r=(z[i>>3]>>(i&7))&1;
+  a[0] = d[0] = 1;
+  for (i = 254; i >= 0; --i) {
+    r = (z[i>>3]>>(i&7))&1;
     sel25519(a, b, cast(int)r);
     sel25519(c, d, cast(int)r);
     A(e, a, c);
@@ -623,11 +625,11 @@ void crypto_scalarmult (ubyte[] q, const(ubyte)[] n, const(ubyte)[] p) {
     sel25519(a, b, cast(int)r);
     sel25519(c, d, cast(int)r);
   }
-  for (i = 0; i < 16; ++i)  {
-    x[i+16]=a[i];
-    x[i+32]=c[i];
-    x[i+48]=b[i];
-    x[i+64]=d[i];
+  for (i = 0; i < 16; ++i) {
+    x[i+16] = a[i];
+    x[i+32] = c[i];
+    x[i+48] = b[i];
+    x[i+64] = d[i];
   }
   inv25519(x[32..$], x[32..$]);
   M(x[16..$], x[16..$], x[32..$]);
@@ -778,13 +780,13 @@ bool crypto_box_open() (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, const(uby
   return crypto_box_open_afternm(m, c, n, k);
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") ulong R() (ulong x, int c) { return (x >> c) | (x << (64 - c)); }
-private @tweetNaCl_gdc_attribute("forceinline") ulong Ch() (ulong x, ulong y, ulong z) { return (x & y) ^ (~x & z); }
-private @tweetNaCl_gdc_attribute("forceinline") ulong Maj() (ulong x, ulong y, ulong z) { return (x & y) ^ (x & z) ^ (y & z); }
-private @tweetNaCl_gdc_attribute("forceinline") ulong Sigma0() (ulong x) { return R(x, 28) ^ R(x, 34) ^ R(x, 39); }
-private @tweetNaCl_gdc_attribute("forceinline") ulong Sigma1() (ulong x) { return R(x, 14) ^ R(x, 18) ^ R(x, 41); }
-private @tweetNaCl_gdc_attribute("forceinline") ulong sigma0() (ulong x) { return R(x, 1) ^ R(x, 8) ^ (x >> 7); }
-private @tweetNaCl_gdc_attribute("forceinline") ulong sigma1() (ulong x) { return R(x, 19) ^ R(x, 61) ^ (x >> 6); }
+private @tweetNaCl_gdc_attribute("forceinline") ulong R() (ulong x, int c) { return (x>>c)|(x<<(64-c)); }
+private @tweetNaCl_gdc_attribute("forceinline") ulong Ch() (ulong x, ulong y, ulong z) { return (x&y)^(~x&z); }
+private @tweetNaCl_gdc_attribute("forceinline") ulong Maj() (ulong x, ulong y, ulong z) { return (x&y)^(x&z)^(y&z); }
+private @tweetNaCl_gdc_attribute("forceinline") ulong Sigma0() (ulong x) { return R(x, 28)^R(x, 34)^R(x, 39); }
+private @tweetNaCl_gdc_attribute("forceinline") ulong Sigma1() (ulong x) { return R(x, 14)^R(x, 18)^R(x, 41); }
+private @tweetNaCl_gdc_attribute("forceinline") ulong sigma0() (ulong x) { return R(x, 1)^R(x, 8)^(x>>7); }
+private @tweetNaCl_gdc_attribute("forceinline") ulong sigma1() (ulong x) { return R(x, 19)^R(x, 61)^(x>>6); }
 
 private static immutable ulong[80] K = [
   0x428a2f98d728ae22UL, 0x7137449123ef65cdUL, 0xb5c0fbcfec4d3b2fUL, 0xe9b5dba58189dbbcUL,
@@ -815,29 +817,29 @@ private void crypto_hashblocks (ubyte[] x, const(ubyte)[] m, ulong n) {
   ulong t;
   uint mpos = 0;
 
-  for (auto i = 0; i < 8; ++i)  z[i] = a[i] = dl64(x[8*i..$]);
+  for (auto i = 0; i < 8; ++i) z[i] = a[i] = dl64(x[8*i..$]);
 
   while (n >= 128) {
-    for (auto i = 0; i < 16; ++i)  w[i] = dl64(m[mpos+8*i..$]);
+    for (auto i = 0; i < 16; ++i) w[i] = dl64(m[mpos+8*i..$]);
 
-    for (auto i = 0; i < 80; ++i)  {
-      for (auto j = 0; j < 8; ++j)  b[j] = a[j];
-      t = a[7] + Sigma1(a[4]) + Ch(a[4], a[5], a[6]) + K[i] + w[i%16];
-      b[7] = t + Sigma0(a[0]) + Maj(a[0], a[1], a[2]);
+    for (auto i = 0; i < 80; ++i) {
+      for (auto j = 0; j < 8; ++j) b[j] = a[j];
+      t = a[7]+Sigma1(a[4])+Ch(a[4], a[5], a[6])+K[i]+w[i%16];
+      b[7] = t+Sigma0(a[0])+Maj(a[0], a[1], a[2]);
       b[3] += t;
-      for (auto j = 0; j < 8; ++j)  a[(j+1)%8] = b[j];
+      for (auto j = 0; j < 8; ++j) a[(j+1)%8] = b[j];
       if (i%16 == 15) {
-        for (auto j = 0; j < 16; ++j) w[j] += w[(j+9)%16] + sigma0(w[(j+1)%16]) + sigma1(w[(j+14)%16]);
+        for (auto j = 0; j < 16; ++j) w[j] += w[(j+9)%16]+sigma0(w[(j+1)%16])+sigma1(w[(j+14)%16]);
       }
     }
 
-    for (auto i = 0; i < 8; ++i)  { a[i] += z[i]; z[i] = a[i]; }
+    for (auto i = 0; i < 8; ++i) { a[i] += z[i]; z[i] = a[i]; }
 
     mpos += 128;
     n -= 128;
   }
 
-  for (auto i = 0; i < 8; ++i)  ts64(x[8*i..$], z[i]);
+  for (auto i = 0; i < 8; ++i) ts64(x[8*i..$], z[i]);
 
   //return cast(int)n;
 }
@@ -872,23 +874,23 @@ void crypto_hash() (ubyte[] out_, const(ubyte)[] m) {
   ulong b = n;
   uint mpos = 0;
 
-  for (auto i = 0; i < 64; ++i)  h[i] = iv[i];
+  for (auto i = 0; i < 64; ++i) h[i] = iv[i];
 
   crypto_hashblocks(h, m, n);
   mpos += n;
   n &= 127;
   mpos -= n;
 
-  for (auto i = 0; i < 256; ++i)  x[i] = 0;
-  for (auto i = 0; i < n; ++i)  x[i] = m[mpos+i];
+  for (auto i = 0; i < 256; ++i) x[i] = 0;
+  for (auto i = 0; i < n; ++i) x[i] = m[mpos+i];
   x[cast(uint)n] = 128;
 
   n = 256-128*(n<112);
-  x[cast(uint)(n-9)] = b >> 61;
+  x[cast(uint)(n-9)] = b>>61;
   ts64(x[cast(uint)(n-8)..$], b<<3);
   crypto_hashblocks(h, x, n);
 
-  for (auto i = 0; i < 64; ++i)  out_[i] = h[i];
+  for (auto i = 0; i < 64; ++i) out_[i] = h[i];
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void add() (ref long[16][4] p, ref long[16][4] q) {
@@ -925,7 +927,7 @@ private @tweetNaCl_gdc_attribute("forceinline") void pack() (ubyte[] r, ref long
   M(tx, p[0], zi);
   M(ty, p[1], zi);
   pack25519(r, ty);
-  r[31] ^= par25519(tx) << 7;
+  r[31] ^= par25519(tx)<<7;
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void scalarmult() (ref long[16][4] p, ref long[16][4] q, const(ubyte)[] s) {
@@ -933,7 +935,7 @@ private @tweetNaCl_gdc_attribute("forceinline") void scalarmult() (ref long[16][
   set25519(p[1], gf1);
   set25519(p[2], gf1);
   set25519(p[3], gf0);
-  for (auto i = 255;i >= 0;--i) {
+  for (auto i = 255; i >= 0; --i) {
     ubyte b = (s[i/8]>>(i&7))&1;
     cswap(p, q, b);
     add(q, p);
@@ -977,41 +979,41 @@ void crypto_sign_keypair() (ubyte[] pk, ubyte[] sk) {
   scalarbase(p, d);
   pack(pk, p);
 
-  for (auto i = 0; i < 32; ++i)  sk[32 + i] = pk[i];
+  for (auto i = 0; i < 32; ++i) sk[32+i] = pk[i];
 }
 
 private static immutable ulong[32] L = [0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10];
 
 private @tweetNaCl_gdc_attribute("forceinline") void modL() (ubyte[] r, long[] x) {
   long carry;
-  for (auto i = 63;i >= 32;--i) {
+  for (auto i = 63; i >= 32; --i) {
     int j;
     carry = 0;
-    for (j = i - 32;j < i - 12;++j) {
-      x[j] += carry - 16 * x[i] * L[j - (i - 32)];
-      carry = (x[j] + 128) >> 8;
-      x[j] -= carry << 8;
+    for (j = i-32; j < i-12; ++j) {
+      x[j] += carry-16*x[i]*L[j-(i-32)];
+      carry = (x[j]+128)>>8;
+      x[j] -= carry<<8;
     }
     x[j] += carry;
     x[i] = 0;
   }
   carry = 0;
-  for (auto j = 0; j < 32; ++j)  {
-    x[j] += carry - (x[31] >> 4) * L[j];
-    carry = x[j] >> 8;
+  for (auto j = 0; j < 32; ++j) {
+    x[j] += carry-(x[31]>>4)*L[j];
+    carry = x[j]>>8;
     x[j] &= 255;
   }
-  for (auto j = 0; j < 32; ++j)  x[j] -= carry * L[j];
-  for (auto i = 0; i < 32; ++i)  {
-    x[i+1] += x[i] >> 8;
-    r[i] = x[i] & 255;
+  for (auto j = 0; j < 32; ++j) x[j] -= carry*L[j];
+  for (auto i = 0; i < 32; ++i) {
+    x[i+1] += x[i]>>8;
+    r[i] = x[i]&255;
   }
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void reduce() (ubyte[] r) {
   long[64] x;
-  for (auto i = 0; i < 64; ++i)  x[i] = cast(ulong) r[i];
-  for (auto i = 0; i < 64; ++i)  r[i] = 0;
+  for (auto i = 0; i < 64; ++i) x[i] = cast(ulong) r[i];
+  for (auto i = 0; i < 64; ++i) r[i] = 0;
   modL(r, x);
 }
 
@@ -1053,15 +1055,17 @@ void crypto_sign() (ubyte[] sm, const(ubyte)[] m, const(ubyte)[] sk) {
   crypto_hash(h, sm[0..n+64]);
   reduce(h);
 
-  for (auto i = 0; i < 64; ++i)  x[i] = 0;
-  for (auto i = 0; i < 32; ++i)  x[i] = cast(ulong)r[i];
-  for (auto i = 0; i < 32; ++i)  for (auto j = 0; j < 32; ++j)  x[i+j] += h[i]*cast(ulong)d[j];
+  for (auto i = 0; i < 64; ++i) x[i] = 0;
+  for (auto i = 0; i < 32; ++i) x[i] = cast(ulong)r[i];
+  for (auto i = 0; i < 32; ++i) for (auto j = 0; j < 32; ++j) x[i+j] += h[i]*cast(ulong)d[j];
   modL(sm[32..$], cast(long[])x);
 }
 
 /**
  * The crypto_sign() function signs a message 'm' using the sender's secret key 'sk'.
  * The crypto_sign() function returns the resulting signed message.
+ *
+ * WARNING! This function allocates!
  *
  * Params:
  *  m == message
@@ -1154,8 +1158,8 @@ bool crypto_sign_open() (ubyte[] m, const(ubyte)[] sm, const(ubyte)[] pk) {
     return false;
   }
 
-  for (auto i = 0; i < n; ++i)  m[i] = sm[i+64];
-  for (auto i = n; i < n+64; ++i)  m[i] = 0;
+  for (auto i = 0; i < n; ++i) m[i] = sm[i+64];
+  for (auto i = n; i < n+64; ++i) m[i] = 0;
 
   return true;
 }
@@ -1165,6 +1169,8 @@ bool crypto_sign_open() (ubyte[] m, const(ubyte)[] sm, const(ubyte)[] pk) {
  * The crypto_sign_open() function verifies the signature in
  * 'sm' using the receiver's public key 'pk'.
  * The crypto_sign_open() function returns the message.
+ *
+ * WARNING! This function allocates!
  *
  * Params:
  *  sm == signed message
@@ -1291,7 +1297,7 @@ unittest {
               hackforward = true;
             }
             goto proceed;
-          //  position++;
+            //++position;
           } else if (state == 2) {
           proceed:
             if (!(((position+length+8)*8)%512)) {
@@ -1349,9 +1355,9 @@ unittest {
     while(!range.empty) {
       uint[64] words;
 
-      for(int a = 0; a < 16; a++) {
-        for(int b = 3; b >= 0; b--) {
-          words[a] |= cast(uint)(range.front()) << (b*8);
+      for(int a = 0; a < 16; ++a) {
+        for(int b = 3; b >= 0; --b) {
+          words[a] |= cast(uint)(range.front())<<(b*8);
           range.popFront;
         }
       }
@@ -1370,10 +1376,10 @@ unittest {
         return reax;
       }
 
-      for(int a = 16; a < 64; a++) {
+      for(int a = 16; a < 64; ++a) {
         uint t1 = xrot00(words[a-15], 7, 18, 3);
         uint t2 = xrot00(words[a-2], 17, 19, 10);
-        words[a] = words[a-16] + t1 + words[a-7] + t2;
+        words[a] = words[a-16]+t1+words[a-7]+t2;
       }
 
       uint A = h[0];
@@ -1395,22 +1401,22 @@ unittest {
         return reax;
       }
 
-      for(int i = 0; i < 64; i++) {
+      for(int i = 0; i < 64; ++i) {
         uint s0 = xrot01(A, 2, 13, 22);
-        uint maj = (A & B) ^ (A & C) ^ (B & C);
-        uint t2 = s0 + maj;
+        uint maj = (A&B)^(A&C)^(B&C);
+        uint t2 = s0+maj;
         uint s1 = xrot01(E, 6, 11, 25);
-        uint ch = (E & F) ^ ((~E) & G);
-        uint t1 = H + s1 + ch + k[i] + words[i];
+        uint ch = (E&F)^((~E)&G);
+        uint t1 = H+s1+ch+k[i]+words[i];
 
         H = G;
         G = F;
         F = E;
-        E = D + t1;
+        E = D+t1;
         D = C;
         C = B;
         B = A;
-        A = t1 + t2;
+        A = t1+t2;
       }
 
       h[0] += A;
@@ -1424,9 +1430,9 @@ unittest {
     }
 
     ubyte[] hash;
-    for(int j = 0; j < 8; j++)
-    for(int i = 3; i >= 0; i--) {
-      hash ~= cast(ubyte)(h[j] >> (i*8))&0xff;
+    for(int j = 0; j < 8; ++j)
+    for(int i = 3; i >= 0; --i) {
+      hash ~= cast(ubyte)(h[j]>>(i*8))&0xff;
     }
 
     return hash.idup;
@@ -1591,14 +1597,14 @@ unittest {
     ubyte[crypto_box_PUBLICKEYBYTES] bobpk;
     ubyte[crypto_box_NONCEBYTES] n;
     ubyte[10000] m, c, m2;
-    for (auto mlen = 0; mlen < 1000 && mlen + crypto_box_ZEROBYTES < m.length; ++mlen) {
+    for (auto mlen = 0; mlen < 1000 && mlen+crypto_box_ZEROBYTES < m.length; ++mlen) {
       crypto_box_keypair(alicepk,alicesk);
       crypto_box_keypair(bobpk,bobsk);
       randombytes(n,crypto_box_NONCEBYTES);
       randombytes(m[crypto_box_ZEROBYTES..$],mlen);
-      crypto_box(c[0..mlen + crypto_box_ZEROBYTES],m,n,bobpk,alicesk);
-      assert(crypto_box_open(m2[0..mlen + crypto_box_ZEROBYTES],c,n,alicepk,bobsk));
-      for (auto i = 0;i < mlen + crypto_box_ZEROBYTES;++i) assert(m2[i] == m[i]);
+      crypto_box(c[0..mlen+crypto_box_ZEROBYTES],m,n,bobpk,alicesk);
+      assert(crypto_box_open(m2[0..mlen+crypto_box_ZEROBYTES],c,n,alicepk,bobsk));
+      for (auto i = 0; i < mlen+crypto_box_ZEROBYTES; ++i) assert(m2[i] == m[i]);
     }
   }
   version(unittest_full) box7(); // it's slow
@@ -1611,17 +1617,17 @@ unittest {
     ubyte[crypto_box_PUBLICKEYBYTES] bobpk;
     ubyte[crypto_box_NONCEBYTES] n;
     ubyte[10000] m, c, m2;
-    for (auto mlen = 0; mlen < 1000 && mlen + crypto_box_ZEROBYTES < m.length; ++mlen) {
+    for (auto mlen = 0; mlen < 1000 && mlen+crypto_box_ZEROBYTES < m.length; ++mlen) {
       crypto_box_keypair(alicepk,alicesk);
       crypto_box_keypair(bobpk,bobsk);
       randombytes(n,crypto_box_NONCEBYTES);
       randombytes(m[crypto_box_ZEROBYTES..$],mlen);
-      crypto_box(c[0..mlen + crypto_box_ZEROBYTES],m,n,bobpk,alicesk);
+      crypto_box(c[0..mlen+crypto_box_ZEROBYTES],m,n,bobpk,alicesk);
       int caught = 0;
       while (caught < 10) {
-        c[uniform(0, mlen + crypto_box_ZEROBYTES)] = cast(ubyte)uniform(0, 256);
-        if (crypto_box_open(m2[0..mlen + crypto_box_ZEROBYTES],c,n,alicepk,bobsk)) {
-          for (auto i = 0;i < mlen + crypto_box_ZEROBYTES;++i) assert(m2[i] == m[i]);
+        c[uniform(0, mlen+crypto_box_ZEROBYTES)] = cast(ubyte)uniform(0, 256);
+        if (crypto_box_open(m2[0..mlen+crypto_box_ZEROBYTES],c,n,alicepk,bobsk)) {
+          for (auto i = 0; i < mlen+crypto_box_ZEROBYTES; ++i) assert(m2[i] == m[i]);
         } else {
           ++caught;
         }
@@ -1714,14 +1720,14 @@ unittest {
 
     static ubyte[16] in_ = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ;
 
-    static ubyte output[64 * 256 * 256];
+    static ubyte output[64*256*256];
 
     static ubyte[64] h;
 
     static immutable ubyte[64] res = [0x2b,0xd8,0xe7,0xdb,0x68,0x77,0x53,0x9e,0x4f,0x2b,0x29,0x5e,0xe4,0x15,0xcd,0x37,0x8a,0xe2,0x14,0xaa,0x3b,0xeb,0x3e,0x08,0xe9,0x11,0xa5,0xbd,0x4a,0x25,0xe6,0xac,0x16,0xca,0x28,0x3c,0x79,0xc3,0x4c,0x08,0xc9,0x9f,0x7b,0xdb,0x56,0x01,0x11,0xe8,0xca,0xc1,0xae,0x65,0xee,0xa0,0x8a,0xc3,0x84,0xd7,0xa5,0x91,0x46,0x1a,0xb6,0xe3];
 
     int pos = 0;
-    for (auto i = 0;i < 8;++i) in_[i] = noncesuffix[i];
+    for (auto i = 0; i < 8; ++i) in_[i] = noncesuffix[i];
     do {
       do {
         crypto_core_salsa20(output[pos..$],in_,secondkey,c);
@@ -1837,12 +1843,12 @@ unittest {
     void print(const(ubyte)[] x, const(ubyte)[] y)
     {
       uint borrow = 0;
-      for (auto i = 0;i < 4;++i) {
+      for (auto i = 0; i < 4; ++i) {
         uint xi = x[i];
         uint yi = y[i];
-        //printf(",0x%02x",255 & (xi - yi - borrow));
-        pp[pppos++] = cast(ubyte)(255 & (xi - yi - borrow));
-        borrow = (xi < yi + borrow);
+        //printf(",0x%02x",255&(xi-yi-borrow));
+        pp[pppos++] = cast(ubyte)(255&(xi-yi-borrow));
+        borrow = (xi < yi+borrow);
       }
     }
 
@@ -1959,9 +1965,9 @@ unittest {
       crypto_onetimeauth(a,c[0..clen],key);
       assert(crypto_onetimeauth_verify(a,c[0..clen],key));
       if (clen > 0) {
-        c[uniform(0, clen)] += 1 + (uniform(0, 255));
+        c[uniform(0, clen)] += 1+(uniform(0, 255));
         assert(!crypto_onetimeauth_verify(a,c[0..clen],key));
-        a[uniform(0, a.length)] += 1 + (uniform(0, 255));
+        a[uniform(0, a.length)] += 1+(uniform(0, 255));
         assert(!crypto_onetimeauth_verify(a,c[0..clen],key));
       }
     }
@@ -2138,7 +2144,7 @@ unittest {
 
     ubyte c[163];
     crypto_secretbox(c,m,nonce,firstkey);
-    for (auto i = 16;i < 163;++i) assert(c[i] == res[i-16]);
+    for (auto i = 16; i < 163; ++i) assert(c[i] == res[i-16]);
   }
   secretbox();
 
@@ -2205,7 +2211,7 @@ unittest {
     ubyte m[163];
 
     assert(crypto_secretbox_open(m,c,nonce,firstkey));
-    for (auto i = 32;i < 163;++i) assert(m[i] == res[i-32]);
+    for (auto i = 32; i < 163; ++i) assert(m[i] == res[i-32]);
   }
   secretbox2();
 
@@ -2214,13 +2220,13 @@ unittest {
     static ubyte[crypto_secretbox_KEYBYTES] k;
     static ubyte[crypto_secretbox_NONCEBYTES] n;
     static ubyte[10000] m, c, m2;
-    for (auto mlen = 0;mlen < 1000 && mlen + crypto_secretbox_ZEROBYTES < m.length;++mlen) {
+    for (auto mlen = 0; mlen < 1000 && mlen+crypto_secretbox_ZEROBYTES < m.length; ++mlen) {
       randombytes(k,crypto_secretbox_KEYBYTES);
       randombytes(n,crypto_secretbox_NONCEBYTES);
       randombytes(m[crypto_secretbox_ZEROBYTES..$],mlen);
-      crypto_secretbox(c[0..mlen + crypto_secretbox_ZEROBYTES],m,n,k);
-      assert(crypto_secretbox_open(m2[0..mlen + crypto_secretbox_ZEROBYTES],c,n,k));
-      for (auto i = 0;i < mlen + crypto_secretbox_ZEROBYTES;++i) assert(m2[i] == m[i]);
+      crypto_secretbox(c[0..mlen+crypto_secretbox_ZEROBYTES],m,n,k);
+      assert(crypto_secretbox_open(m2[0..mlen+crypto_secretbox_ZEROBYTES],c,n,k));
+      for (auto i = 0; i < mlen+crypto_secretbox_ZEROBYTES; ++i) assert(m2[i] == m[i]);
     }
   }
   secretbox7();
@@ -2230,16 +2236,16 @@ unittest {
     static ubyte[crypto_secretbox_KEYBYTES] k;
     static ubyte[crypto_secretbox_NONCEBYTES] n;
     static ubyte[10000] m, c, m2;
-    for (auto mlen = 0;mlen < 1000 && mlen + crypto_secretbox_ZEROBYTES < m.length;++mlen) {
+    for (auto mlen = 0; mlen < 1000 && mlen+crypto_secretbox_ZEROBYTES < m.length; ++mlen) {
       randombytes(k,crypto_secretbox_KEYBYTES);
       randombytes(n,crypto_secretbox_NONCEBYTES);
       randombytes(m[crypto_secretbox_ZEROBYTES..$],mlen);
-      crypto_secretbox(c[0..mlen + crypto_secretbox_ZEROBYTES],m,n,k);
+      crypto_secretbox(c[0..mlen+crypto_secretbox_ZEROBYTES],m,n,k);
       auto caught = 0;
       while (caught < 10) {
-        c[uniform(0, mlen + crypto_secretbox_ZEROBYTES)] = cast(ubyte)uniform(0, 256);
-        if (crypto_secretbox_open(m2[0..mlen + crypto_secretbox_ZEROBYTES],c,n,k)) {
-          for (auto i = 0;i < mlen + crypto_secretbox_ZEROBYTES;++i) assert(m2[i] == m[i]);
+        c[uniform(0, mlen+crypto_secretbox_ZEROBYTES)] = cast(ubyte)uniform(0, 256);
+        if (crypto_secretbox_open(m2[0..mlen+crypto_secretbox_ZEROBYTES],c,n,k)) {
+          for (auto i = 0; i < mlen+crypto_secretbox_ZEROBYTES; ++i) assert(m2[i] == m[i]);
         }
         ++caught;
       }
@@ -2385,7 +2391,7 @@ unittest {
     ];
 
     /*crypto_stream_xsalsa20_xor*/crypto_stream_xor(c,m,nonce,firstkey);
-    for (auto i = 32;i < 163;++i) assert(c[i] == res[i-32]);
+    for (auto i = 32; i < 163; ++i) assert(c[i] == res[i-32]);
   }
   stream4();
 }

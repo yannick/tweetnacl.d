@@ -102,33 +102,48 @@ private static immutable long[16]
   Y = [0x6658, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666],
   I = [0xa0b0, 0x4a0e, 0x1b27, 0xc4ee, 0xe478, 0xad2f, 0x1806, 0x2f43, 0xd7a7, 0x3dfb, 0x0099, 0x2b4d, 0xdf0b, 0x4fc1, 0x2480, 0x2b83];
 
-private @tweetNaCl_gdc_attribute("forceinline") uint L32() (uint x, int c) { return (x<<c)|((x&0xffffffff)>>(32-c)); }
+private @tweetNaCl_gdc_attribute("forceinline") uint ROTL32() (uint x, int c) @safe nothrow { return (x<<c)|((x&0xffffffff)>>(32-c)); }
 
-private @tweetNaCl_gdc_attribute("forceinline") uint ld32() (const(ubyte)[] x) {
+private @tweetNaCl_gdc_attribute("forceinline") uint ld32() (const(ubyte)[] x) @safe nothrow {
   uint u = x[3];
   u = (u<<8)|x[2];
   u = (u<<8)|x[1];
   return (u<<8)|x[0];
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") ulong dl64() (const(ubyte)[] x) {
-  ulong u = 0;
-  for (auto i = 0; i < 8; ++i) u = (u<<8)|x[i];
-  return u;
+private @tweetNaCl_gdc_attribute("forceinline") ulong dl64() (const(ubyte)[] x) @safe nothrow {
+  ulong u = x[0];
+  u = (u<<8)|x[1];
+  u = (u<<8)|x[2];
+  u = (u<<8)|x[3];
+  u = (u<<8)|x[4];
+  u = (u<<8)|x[5];
+  u = (u<<8)|x[6];
+  return (u<<8)|x[7];
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void st32() (ubyte[] x, uint u) {
-  for (auto i = 0; i < 4; ++i) { x[i] = cast(ubyte)(u&0xff); u >>= 8; }
+private @tweetNaCl_gdc_attribute("forceinline") void st32() (ubyte[] x, uint u) @safe nothrow {
+  x[0] = u&0xff;
+  x[1] = (u>>8)&0xff;
+  x[2] = (u>>16)&0xff;
+  x[3] = (u>>24)&0xff;
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void ts64() (ubyte[] x, ulong u) {
-  for (auto i = 7; i >= 0; --i) { x[i] = cast(ubyte)(u&0xff); u >>= 8; }
+private @tweetNaCl_gdc_attribute("forceinline") void ts64() (ubyte[] x, ulong u) @safe nothrow {
+  x[0] = (u>>56)&0xff;
+  x[1] = (u>>48)&0xff;
+  x[2] = (u>>40)&0xff;
+  x[3] = (u>>32)&0xff;
+  x[4] = (u>>24)&0xff;
+  x[5] = (u>>16)&0xff;
+  x[6] = (u>>8)&0xff;
+  x[7] = u&0xff;
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") int vn() (const(ubyte)[] x, const(ubyte)[] y, int n) {
+private @tweetNaCl_gdc_attribute("forceinline") bool vn() (const(ubyte)[] x, const(ubyte)[] y, size_t n) @safe nothrow {
   uint d = 0;
-  for (auto i = 0; i < n; ++i) d |= x[i]^y[i];
-  return (1&((d-1)>>8))-1;
+  for (size_t i = 0; i < n; ++i) d |= x[i]^y[i];
+  return (1&((d-1)>>8)) != 0;
 }
 
 /**
@@ -141,8 +156,8 @@ private @tweetNaCl_gdc_attribute("forceinline") int vn() (const(ubyte)[] x, cons
  * Returns:
  *  success flag
  */
-@tweetNaCl_gdc_attribute("forceinline") bool crypto_verify_16() (const(ubyte)[] x, const(ubyte)[] y) {
-  return (vn(x, y, 16) == 0);
+@tweetNaCl_gdc_attribute("forceinline") bool crypto_verify_16() (const(ubyte)[] x, const(ubyte)[] y) @safe nothrow {
+  return vn(x, y, 16);
 }
 
 /**
@@ -155,12 +170,12 @@ private @tweetNaCl_gdc_attribute("forceinline") int vn() (const(ubyte)[] x, cons
  * Returns:
  *  success flag
  */
-@tweetNaCl_gdc_attribute("forceinline") bool crypto_verify_32() (const(ubyte)[] x, const(ubyte)[] y) {
-  return (vn(x, y, 32) == 0);
+@tweetNaCl_gdc_attribute("forceinline") bool crypto_verify_32() (const(ubyte)[] x, const(ubyte)[] y) @safe nothrow {
+  return vn(x, y, 32);
 }
 
 
-private void core (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c, int h) {
+private void salsa_core (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c, bool hsalsa) {
   uint[16] w, x, y;
   uint[4] t;
 
@@ -176,16 +191,16 @@ private void core (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(uby
   for (auto i = 0; i < 20; ++i) {
     for (auto j = 0; j < 4; ++j) {
       for (auto m = 0; m < 4; ++m) t[m] = x[(5*j+4*m)%16];
-      t[1] ^= L32(t[0]+t[3], 7);
-      t[2] ^= L32(t[1]+t[0], 9);
-      t[3] ^= L32(t[2]+t[1], 13);
-      t[0] ^= L32(t[3]+t[2], 18);
+      t[1] ^= ROTL32(t[0]+t[3], 7);
+      t[2] ^= ROTL32(t[1]+t[0], 9);
+      t[3] ^= ROTL32(t[2]+t[1], 13);
+      t[0] ^= ROTL32(t[3]+t[2], 18);
       for (auto m = 0; m < 4; ++m) w[4*j+(j+m)%4] = t[m];
     }
     for (auto m = 0; m < 16; ++m) x[m] = w[m];
   }
 
-  if (h) {
+  if (hsalsa) {
     for (auto i = 0; i < 16; ++i) x[i] += y[i];
     for (auto i = 0; i < 4; ++i) {
       x[5*i] -= ld32(c[4*i..$]);
@@ -201,11 +216,11 @@ private void core (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(uby
 }
 
 @tweetNaCl_gdc_attribute("forceinline") void crypto_core_salsa20() (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c) {
-  core(out_, in_, k, c, 0);
+  salsa_core(out_, in_, k, c, false);
 }
 
 @tweetNaCl_gdc_attribute("forceinline") void crypto_core_hsalsa20() (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c) {
-  core(out_, in_, k, c, 1);
+  salsa_core(out_, in_, k, c, true);
 }
 
 private static immutable ubyte[16] sigma = ['e','x','p','a','n','d',' ','3','2','-','b','y','t','e',' ','k'];

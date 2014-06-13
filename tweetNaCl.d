@@ -97,21 +97,27 @@ private static immutable long[16]
   gf1 = [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
   _121665 = [0xDB41,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
   D = [0x78a3, 0x1359, 0x4dca, 0x75eb, 0xd8ab, 0x4141, 0x0a4d, 0x0070, 0xe898, 0x7779, 0x4079, 0x8cc7, 0xfe73, 0x2b6f, 0x6cee, 0x5203],
-  D2 = [0xf159, 0x26b2, 0x9b94, 0xebd6, 0xb156, 0x8283, 0x149a, 0x00e0, 0xd130, 0xeef3, 0x80f2, 0x198e, 0xfce7, 0x56df, 0xd9dc, 0x2406],
+  D2 =[0xf159, 0x26b2, 0x9b94, 0xebd6, 0xb156, 0x8283, 0x149a, 0x00e0, 0xd130, 0xeef3, 0x80f2, 0x198e, 0xfce7, 0x56df, 0xd9dc, 0x2406],
   X = [0xd51a, 0x8f25, 0x2d60, 0xc956, 0xa7b2, 0x9525, 0xc760, 0x692c, 0xdc5c, 0xfdd6, 0xe231, 0xc0a4, 0x53fe, 0xcd6e, 0x36d3, 0x2169],
   Y = [0x6658, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666],
   I = [0xa0b0, 0x4a0e, 0x1b27, 0xc4ee, 0xe478, 0xad2f, 0x1806, 0x2f43, 0xd7a7, 0x3dfb, 0x0099, 0x2b4d, 0xdf0b, 0x4fc1, 0x2480, 0x2b83];
 
-private @tweetNaCl_gdc_attribute("forceinline") uint ROTL32() (uint x, int c) @safe nothrow { return (x<<c)|((x&0xffffffff)>>(32-c)); }
-
-private @tweetNaCl_gdc_attribute("forceinline") uint ld32() (const(ubyte)[] x) @safe nothrow {
+private @tweetNaCl_gdc_attribute("forceinline") uint ld32() (const(ubyte)[] x) @safe nothrow
+in {
+  assert(x.length >= 4);
+}
+body {
   uint u = x[3];
   u = (u<<8)|x[2];
   u = (u<<8)|x[1];
   return (u<<8)|x[0];
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") ulong dl64() (const(ubyte)[] x) @safe nothrow {
+private @tweetNaCl_gdc_attribute("forceinline") ulong dl64() (const(ubyte)[] x) @safe nothrow
+in {
+  assert(x.length >= 8);
+}
+body {
   ulong u = x[0];
   u = (u<<8)|x[1];
   u = (u<<8)|x[2];
@@ -122,14 +128,22 @@ private @tweetNaCl_gdc_attribute("forceinline") ulong dl64() (const(ubyte)[] x) 
   return (u<<8)|x[7];
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void st32() (ubyte[] x, uint u) @safe nothrow {
+private @tweetNaCl_gdc_attribute("forceinline") void st32() (ubyte[] x, uint u) @safe nothrow
+in {
+  assert(x.length >= 4);
+}
+body {
   x[0] = u&0xff;
   x[1] = (u>>8)&0xff;
   x[2] = (u>>16)&0xff;
   x[3] = (u>>24)&0xff;
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void ts64() (ubyte[] x, ulong u) @safe nothrow {
+private @tweetNaCl_gdc_attribute("forceinline") void ts64() (ubyte[] x, ulong u) @safe nothrow
+in {
+  assert(x.length >= 8);
+}
+body {
   x[0] = (u>>56)&0xff;
   x[1] = (u>>48)&0xff;
   x[2] = (u>>40)&0xff;
@@ -140,9 +154,13 @@ private @tweetNaCl_gdc_attribute("forceinline") void ts64() (ubyte[] x, ulong u)
   x[7] = u&0xff;
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") bool vn() (const(ubyte)[] x, const(ubyte)[] y, size_t n) @safe nothrow {
+private @tweetNaCl_gdc_attribute("forceinline") bool vn() (const(ubyte)[] x, const(ubyte)[] y) @safe nothrow
+in {
+  assert(x.length >= y.length);
+}
+body {
   uint d = 0;
-  for (size_t i = 0; i < n; ++i) d |= x[i]^y[i];
+  foreach (immutable i, immutable v; x) d |= v^y[i];
   return (1&((d-1)>>8)) != 0;
 }
 
@@ -156,8 +174,12 @@ private @tweetNaCl_gdc_attribute("forceinline") bool vn() (const(ubyte)[] x, con
  * Returns:
  *  success flag
  */
-@tweetNaCl_gdc_attribute("forceinline") bool crypto_verify_16() (const(ubyte)[] x, const(ubyte)[] y) @safe nothrow {
-  return vn(x, y, 16);
+@tweetNaCl_gdc_attribute("forceinline") bool crypto_verify_16() (const(ubyte)[] x, const(ubyte)[] y) @safe nothrow
+in {
+  assert(x.length >= 16 && y.length >= 16);
+}
+body {
+  return vn(x[0..16], y[0..16]);
 }
 
 /**
@@ -170,27 +192,42 @@ private @tweetNaCl_gdc_attribute("forceinline") bool vn() (const(ubyte)[] x, con
  * Returns:
  *  success flag
  */
-@tweetNaCl_gdc_attribute("forceinline") bool crypto_verify_32() (const(ubyte)[] x, const(ubyte)[] y) @safe nothrow {
-  return vn(x, y, 32);
+@tweetNaCl_gdc_attribute("forceinline") bool crypto_verify_32() (const(ubyte)[] x, const(ubyte)[] y) @safe nothrow
+in {
+  assert(x.length >= 32 && y.length >= 32);
+}
+body {
+  return vn(x[0..32], y[0..32]);
 }
 
 
-private void salsa_core (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c, bool hsalsa) {
-  uint[16] w, x, y;
-  uint[4] t;
+private void salsa_core(alias type) (ubyte[] output, const(ubyte)[] input, const(ubyte)[] key, const(ubyte)[] constant)
+if (type == "salsa" || type == "hsalsa") // constraint
+in {
+  // magic!
+  assert(mixin(`output.length >= crypto_core_`~type~`20_OUTPUTBYTES`));
+  assert(mixin(`input.length >= crypto_core_`~type~`20_INPUTBYTES`));
+  assert(mixin(`key.length >= crypto_core_`~type~`20_KEYBYTES`));
+  assert(mixin(`constant.length >= crypto_core_`~type~`20_CONSTBYTES`));
+}
+body {
+  static @tweetNaCl_gdc_attribute("forceinline") uint ROTL32() (uint x, int c) @safe nothrow { return (x<<c)|((x&0xffffffff)>>(32-c)); }
 
-  for (auto i = 0; i < 4; ++i) {
-    x[5*i] = ld32(c[4*i..$]);
-    x[1+i] = ld32(k[4*i..$]);
-    x[6+i] = ld32(in_[4*i..$]);
-    x[11+i] = ld32(k[16+4*i..$]);
+  uint[16] w = void, x = void, y = void;
+  uint[4] t = void;
+
+  foreach (i; 0..4) {
+    x[5*i] = ld32(constant[4*i..$]);
+    x[1+i] = ld32(key[4*i..$]);
+    x[6+i] = ld32(input[4*i..$]);
+    x[11+i] = ld32(key[16+4*i..$]);
   }
 
-  for (auto i = 0; i < 16; ++i) y[i] = x[i];
+  y[] = x[];
 
-  for (auto i = 0; i < 20; ++i) {
-    for (auto j = 0; j < 4; ++j) {
-      for (auto m = 0; m < 4; ++m) t[m] = x[(5*j+4*m)%16];
+  foreach (i; 0..20) {
+    foreach (j; 0..4) {
+      foreach (m; 0..4) t[m] = x[(5*j+4*m)%16];
       t[1] ^= ROTL32(t[0]+t[3], 7);
       t[2] ^= ROTL32(t[1]+t[0], 9);
       t[3] ^= ROTL32(t[2]+t[1], 13);
@@ -200,133 +237,145 @@ private void salsa_core (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, con
     for (auto m = 0; m < 16; ++m) x[m] = w[m];
   }
 
-  if (hsalsa) {
+  static if (type == "hsalsa") {
     for (auto i = 0; i < 16; ++i) x[i] += y[i];
     for (auto i = 0; i < 4; ++i) {
-      x[5*i] -= ld32(c[4*i..$]);
-      x[6+i] -= ld32(in_[4*i..$]);
+      x[5*i] -= ld32(constant[4*i..$]);
+      x[6+i] -= ld32(input[4*i..$]);
     }
     for (auto i = 0; i < 4; ++i) {
-      st32(out_[4*i..$], x[5*i]);
-      st32(out_[16+4*i..$], x[6+i]);
+      st32(output[4*i..$], x[5*i]);
+      st32(output[16+4*i..$], x[6+i]);
     }
   } else {
-    for (auto i = 0; i < 16; ++i) st32(out_[4*i..$], x[i]+y[i]);
+    for (auto i = 0; i < 16; ++i) st32(output[4*i..$], x[i]+y[i]);
   }
 }
 
-@tweetNaCl_gdc_attribute("forceinline") void crypto_core_salsa20() (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c) {
-  salsa_core(out_, in_, k, c, false);
+@tweetNaCl_gdc_attribute("forceinline") void crypto_core_salsa20() (ubyte[] output, const(ubyte)[] input, const(ubyte)[] key, const(ubyte)[] constant) {
+  salsa_core!"salsa"(output, input, key, constant);
 }
 
-@tweetNaCl_gdc_attribute("forceinline") void crypto_core_hsalsa20() (ubyte[] out_, const(ubyte)[] in_, const(ubyte)[] k, const(ubyte)[] c) {
-  salsa_core(out_, in_, k, c, true);
+@tweetNaCl_gdc_attribute("forceinline") void crypto_core_hsalsa20() (ubyte[] output, const(ubyte)[] input, const(ubyte)[] key, const(ubyte)[] constant) {
+  salsa_core!"hsalsa"(output, input, key, constant);
 }
 
-private static immutable ubyte[16] sigma = ['e','x','p','a','n','d',' ','3','2','-','b','y','t','e',' ','k'];
+private static __gshared immutable immutable(ubyte)[] sigma = cast(immutable(ubyte)[])"expand 32-byte k";
 
 /**
- * The crypto_stream_salsa20_xor() function encrypts a message 'm' using a secret key 'k'
- * and a nonce 'n'. The crypto_stream_salsa20_xor() function returns the ciphertext 'c'.
+ * The crypto_stream_salsa20_xor() function encrypts a message 'msg' using a secret key 'key'
+ * and a nonce 'nonce'. The crypto_stream_salsa20_xor() function returns the ciphertext 'output'.
  *
  * Params:
- *  c = resulting ciphertext
- *  m = message
- *  n = nonce
- *  k = secret key
+ *  output = resulting ciphertext
+ *  msg = message
+ *  nonce = nonce
+ *  key = secret key
  *
  * Returns:
- *  ciphertext in 'c'
+ *  ciphertext in 'output'
  */
-void crypto_stream_salsa20_xor (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] k) {
-  assert(n.length == crypto_stream_salsa20_NONCEBYTES);
-  assert(k.length == crypto_stream_salsa20_KEYBYTES);
-  ubyte[16] z;
-  ubyte[64] x;
+void crypto_stream_salsa20_xor (ubyte[] output, const(ubyte)[] msg, const(ubyte)[] nonce, const(ubyte)[] key)
+in {
+  assert(nonce.length == crypto_stream_salsa20_NONCEBYTES);
+  assert(key.length == crypto_stream_salsa20_KEYBYTES);
+  import std.stdio;
+  assert(msg.length == 0 || output.length <= msg.length);
+}
+body {
+  ubyte[16] z = void;
+  ubyte[64] x = void;
   uint u;
   uint cpos = 0, mpos = 0;
-  size_t b = c.length;
+  size_t b = output.length;
   if (!b) return;
-  for (auto i = 0; i < 16; ++i) z[i] = 0; //FIXME
-  for (auto i = 0; i < 8; ++i) z[i] = n[i];
+  z[] = 0;
+  z[0..8] = nonce[0..8];
   while (b >= 64) {
-    crypto_core_salsa20(x, z, k, sigma);
-    for (auto i = 0; i < 64; ++i) c[cpos+i] = (m !is null ? m[mpos+i] : 0)^x[i];
+    crypto_core_salsa20(x, z, key, sigma);
+    if (msg !is null) {
+      foreach (v; x) output[cpos++] = msg[mpos++]^v;
+    } else {
+      output[cpos..cpos+64] = x[];
+      cpos += 64;
+    }
     u = 1;
-    for (auto i = 8; i < 16; ++i) {
+    foreach (i; 8..16) {
       u += cast(uint)z[i];
-      z[i] = cast(ubyte)(u&0xff);
+      z[i] = u&0xff;
       u >>= 8;
     }
     b -= 64;
-    cpos += 64;
-    mpos += 64;
   }
   if (b) {
-    crypto_core_salsa20(x, z, k, sigma);
-    for (auto i = 0; i < b; ++i) c[cpos+i] = (m !is null ? m[mpos+i] : 0)^x[i];
+    crypto_core_salsa20(x, z, key, sigma);
+    if (msg !is null) {
+      foreach (i; 0..b) output[cpos++] = msg[mpos++]^x[i];
+    } else {
+      output[cpos..cpos+b] = x[0..b];
+    }
   }
 }
 
 /**
  * The crypto_stream_salsa20() function produces a stream 'c'
- * as a function of a secret key 'k' and a nonce 'n'.
+ * as a function of a secret key 'key' and a nonce 'nonce'.
  *
  * Params:
  *  c = resulting stream
- *  n = nonce
- *  k = secret key
+ *  nonce = nonce
+ *  key = secret key
  *
  * Returns:
  *  ciphertext in 'c'
  */
-void crypto_stream_salsa20() (ubyte[] c, const(ubyte)[] n, const(ubyte)[] k) {
-  assert(n.length == crypto_stream_salsa20_NONCEBYTES);
-  assert(k.length == crypto_stream_salsa20_KEYBYTES);
-  crypto_stream_salsa20_xor(c, null, n, k);
+void crypto_stream_salsa20() (ubyte[] c, const(ubyte)[] nonce, const(ubyte)[] key) {
+  assert(nonce.length == crypto_stream_salsa20_NONCEBYTES);
+  assert(key.length == crypto_stream_salsa20_KEYBYTES);
+  crypto_stream_salsa20_xor(c, null, nonce, key);
 }
 
 /**
  * The crypto_stream() function produces a stream 'c'
- * as a function of a secret key 'k' and a nonce 'n'.
+ * as a function of a secret key 'key' and a nonce 'nonce'.
  *
  * Params:
  *  c = output slice
- *  n = nonce
- *  k = secret key
+ *  nonce = nonce
+ *  key = secret key
  *
  * Returns:
  *  stream in 'c'
  */
-void crypto_stream() (ubyte[] c, const(ubyte)[] n, const(ubyte)[] k) {
+void crypto_stream() (ubyte[] c, const(ubyte)[] nonce, const(ubyte)[] key) {
   assert(c !is null);
-  assert(n.length == crypto_stream_NONCEBYTES);
-  assert(k.length == crypto_stream_KEYBYTES);
+  assert(nonce.length == crypto_stream_NONCEBYTES);
+  assert(key.length == crypto_stream_KEYBYTES);
   ubyte[32] s;
-  crypto_core_hsalsa20(s, n, k, sigma);
-  crypto_stream_salsa20(c, n[16..$], s);
+  crypto_core_hsalsa20(s, nonce, key, sigma);
+  crypto_stream_salsa20(c, nonce[16..$], s);
 }
 
 /**
- * The crypto_stream_xor() function encrypts a message 'm' using a secret key 'k'
- * and a nonce 'n'. The crypto_stream_xor() function returns the ciphertext 'c'.
+ * The crypto_stream_xor() function encrypts a message 'msg' using a secret key 'key'
+ * and a nonce 'nonce'. The crypto_stream_xor() function returns the ciphertext 'c'.
  *
  * Params:
  *  c = output slice
- *  n = nonce
- *  k = secret key
+ *  nonce = nonce
+ *  key = secret key
  *
  * Returns:
  *  ciphertext in 'c'
  */
-void crypto_stream_xor() (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] k) {
+void crypto_stream_xor() (ubyte[] c, const(ubyte)[] msg, const(ubyte)[] nonce, const(ubyte)[] key) {
   assert(c !is null);
-  assert(m.length >= c.length);
-  assert(n.length == crypto_stream_NONCEBYTES);
-  assert(k.length == crypto_stream_KEYBYTES);
+  assert(msg.length >= c.length);
+  assert(nonce.length == crypto_stream_NONCEBYTES);
+  assert(key.length == crypto_stream_KEYBYTES);
   ubyte s[32];
-  crypto_core_hsalsa20(s, n, k, sigma);
-  crypto_stream_salsa20_xor(c, m, n[16..$], s);
+  crypto_core_hsalsa20(s, nonce, key, sigma);
+  crypto_stream_salsa20_xor(c, msg, nonce[16..$], s);
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void add1305() (uint[] h, const(uint)[] c) {
@@ -341,27 +390,27 @@ private @tweetNaCl_gdc_attribute("forceinline") void add1305() (uint[] h, const(
 private static immutable uint[17] minusp = [5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,252];
 
 /**
- * The crypto_onetimeauth() function authenticates a message 'm'
- * using a secret key 'k'. The function returns an authenticator 'out_'.
+ * The crypto_onetimeauth() function authenticates a message 'msg'
+ * using a secret key 'key'. The function returns an authenticator 'output'.
  *
  * Params:
- *  out_ = authenticator, slice size must be at least crypto_onetimeauth_BYTES, extra ignored
- *  m == message
- *  k == secret key, slice size must be at least crypto_onetimeauth_KEYBYTES, extra ignored
+ *  output = authenticator, slice size must be at least crypto_onetimeauth_BYTES, extra ignored
+ *  msg == message
+ *  key == secret key, slice size must be at least crypto_onetimeauth_KEYBYTES, extra ignored
  *
  * Returns:
- *  authenticator in 'out_'
+ *  authenticator in 'output'
  */
-void crypto_onetimeauth() (ubyte[] out_, const(ubyte)[] m, const(ubyte)[] k) {
-  assert(k.length >= crypto_onetimeauth_KEYBYTES);
-  assert(out_.length >= crypto_onetimeauth_BYTES);
+void crypto_onetimeauth() (ubyte[] output, const(ubyte)[] msg, const(ubyte)[] key) {
+  assert(key.length >= crypto_onetimeauth_KEYBYTES);
+  assert(output.length >= crypto_onetimeauth_BYTES);
   uint s, i, j, u;
   uint[17] x, r, h, c, g;
   uint mpos = 0;
-  size_t n = m.length;
+  size_t n = msg.length;
 
   for (j = 0; j < 17; ++j) r[j] = h[j] = 0;
-  for (j = 0; j < 16; ++j) r[j] = k[j];
+  for (j = 0; j < 16; ++j) r[j] = key[j];
   r[3]&=15;
   r[4]&=252;
   r[7]&=15;
@@ -372,7 +421,7 @@ void crypto_onetimeauth() (ubyte[] out_, const(ubyte)[] m, const(ubyte)[] k) {
 
   while (n > 0) {
     for (j = 0; j < 17; ++j) c[j] = 0;
-    for (j = 0; j < 16 && j < n; ++j) c[j] = m[mpos+j];
+    for (j = 0; j < 16 && j < n; ++j) c[j] = msg[mpos+j];
     c[j] = 1;
     mpos += j;
     n -= j;
@@ -404,52 +453,52 @@ void crypto_onetimeauth() (ubyte[] out_, const(ubyte)[] m, const(ubyte)[] k) {
   s = -(h[16]>>7);
   for (j = 0; j < 17; ++j) h[j] ^= s&(g[j]^h[j]);
 
-  for (j = 0; j < 16; ++j) c[j] = k[j+16];
+  for (j = 0; j < 16; ++j) c[j] = key[j+16];
   c[16] = 0;
   add1305(h, c);
-  for (j = 0; j < 16; ++j) out_[j] = cast(ubyte)(h[j]&0xff);
+  for (j = 0; j < 16; ++j) output[j] = cast(ubyte)(h[j]&0xff);
 }
 
 /**
  * The crypto_onetimeauth_verify() function checks that
- * 'h' is a correct authenticator of a message 'm' under the secret key 'k'.
+ * 'h' is a correct authenticator of a message 'msg' under the secret key 'key'.
  *
  * Params:
  *  h = authenticator, slice size must be at least crypto_onetimeauth_BYTES, extra ignored
- *  m == message
- *  k == secret key, slice size must be at least crypto_onetimeauth_KEYBYTES, extra ignored
+ *  msg == message
+ *  key == secret key, slice size must be at least crypto_onetimeauth_KEYBYTES, extra ignored
  *
  * Returns:
  *  success flag
  */
-bool crypto_onetimeauth_verify() (const(ubyte)[] h, const(ubyte)[] m, const(ubyte)[] k) {
+bool crypto_onetimeauth_verify() (const(ubyte)[] h, const(ubyte)[] msg, const(ubyte)[] key) {
   assert(h.length >= crypto_onetimeauth_BYTES);
-  assert(k.length >= crypto_onetimeauth_KEYBYTES);
+  assert(key.length >= crypto_onetimeauth_KEYBYTES);
   ubyte x[16];
-  crypto_onetimeauth(x, m, k);
+  crypto_onetimeauth(x, msg, key);
   return crypto_verify_16(h, x);
 }
 
 /**
  * The crypto_secretbox() function encrypts and authenticates
- * a message 'm' using a secret key 'k' and a nonce 'n'.
+ * a message 'msg' using a secret key 'key' and a nonce 'nonce'.
  * The crypto_secretbox() function returns the resulting ciphertext 'c'.
  *
  * Params:
  *  c = resulting cyphertext
- *  k = secret key
- *  n = nonce
+ *  key = secret key
+ *  nonce = nonce
  *
  * Returns:
  *  success flag and cyphertext in 'c'
  */
-bool crypto_secretbox() (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] k) {
-  assert(k.length >= crypto_secretbox_KEYBYTES);
-  assert(n.length >= crypto_secretbox_NONCEBYTES);
-  //c.length = m.length+crypto_secretbox_ZEROBYTES;
+bool crypto_secretbox() (ubyte[] c, const(ubyte)[] msg, const(ubyte)[] nonce, const(ubyte)[] key) {
+  assert(key.length >= crypto_secretbox_KEYBYTES);
+  assert(nonce.length >= crypto_secretbox_NONCEBYTES);
+  //c.length = msg.length+crypto_secretbox_ZEROBYTES;
   if (c is null || c.length < 32) return false;
-  //assert(m.length >= c.length);
-  crypto_stream_xor(c, m, n, k);
+  //assert(msg.length >= c.length);
+  crypto_stream_xor(c, msg, nonce, key);
   crypto_onetimeauth(c[16..$], c[32..$], c);
   for (auto i = 0; i < 16; ++i) c[i] = 0;
   //return c[crypto_secretbox_BOXZEROBYTES..$];
@@ -458,27 +507,27 @@ bool crypto_secretbox() (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ub
 
 /**
  * The crypto_secretbox_open() function verifies and decrypts
- * a ciphertext 'c' using a secret key 'k' and a nonce 'n'.
- * The crypto_secretbox_open() function returns the resulting plaintext 'm'.
+ * a ciphertext 'c' using a secret key 'key' and a nonce 'nonce'.
+ * The crypto_secretbox_open() function returns the resulting plaintext 'output'.
  *
  * Params:
- *  m = resulting message
+ *  output = resulting message
  *  c = cyphertext
- *  k = secret key
- *  n = nonce
+ *  key = secret key
+ *  nonce = nonce
  *
  * Returns:
- *  success flag and message in 'm'
+ *  success flag and message in 'output'
  */
-bool crypto_secretbox_open() (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, const(ubyte)[] k) {
-  assert(k.length >= crypto_secretbox_KEYBYTES);
-  assert(n.length >= crypto_secretbox_NONCEBYTES);
+bool crypto_secretbox_open() (ubyte[] output, const(ubyte)[] c, const(ubyte)[] nonce, const(ubyte)[] key) {
+  assert(key.length >= crypto_secretbox_KEYBYTES);
+  assert(nonce.length >= crypto_secretbox_NONCEBYTES);
   ubyte x[32];
-  if (m is null || m.length < 32) return false;
-  crypto_stream(x, n, k);
-  if (!crypto_onetimeauth_verify(c[16..$], c[32../*$*/32+(m.length-32)], x)) return false;
-  crypto_stream_xor(m, c, n, k);
-  for (auto i = 0; i < 32; ++i) m[i] = 0;
+  if (output is null || output.length < 32) return false;
+  crypto_stream(x, nonce, key);
+  if (!crypto_onetimeauth_verify(c[16..$], c[32../*$*/32+(output.length-32)], x)) return false;
+  crypto_stream_xor(output, c, nonce, key);
+  for (auto i = 0; i < 32; ++i) output[i] = 0;
   return true;
 }
 
@@ -599,7 +648,7 @@ private @tweetNaCl_gdc_attribute("forceinline") void pow2523() (long[] o, const(
  * Returns:
  *  resulting group element 'q' of length crypto_scalarmult_BYTES.
  */
-void crypto_scalarmult (ubyte[] q, const(ubyte)[] n, const(ubyte)[] p) {
+private void crypto_scalarmult (ubyte[] q, const(ubyte)[] n, const(ubyte)[] p) {
   assert(q.length == crypto_scalarmult_BYTES);
   assert(n.length == crypto_scalarmult_BYTES);
   assert(p.length == crypto_scalarmult_BYTES);
@@ -663,7 +712,7 @@ void crypto_scalarmult (ubyte[] q, const(ubyte)[] n, const(ubyte)[] p) {
  * Returns:
  *  resulting group element 'q' of length crypto_scalarmult_BYTES.
  */
-void crypto_scalarmult_base() (ubyte[] q, const(ubyte)[] n) {
+private void crypto_scalarmult_base() (ubyte[] q, const(ubyte)[] n) {
   assert(q.length == crypto_scalarmult_BYTES);
   assert(n.length == crypto_scalarmult_SCALARBYTES);
   crypto_scalarmult(q, n, _9);
@@ -692,109 +741,109 @@ void crypto_box_keypair() (ubyte[] pk, ubyte[] sk) {
  * public key 'pk' and secret key 'sk'.
  *
  * Params:
- *  k = slice to put secret into
+ *  skey = slice to put secret into
  *  pk = public
  *  sk = secret
  *
  * Returns:
  *  generated secret
  */
-void crypto_box_beforenm() (ubyte[] k, const(ubyte)[] pk, const(ubyte)[] sk) {
+void crypto_box_beforenm() (ubyte[] skey, const(ubyte)[] pk, const(ubyte)[] sk) {
   assert(pk.length >= crypto_box_PUBLICKEYBYTES);
   assert(sk.length >= crypto_box_SECRETKEYBYTES);
-  assert(k.length >= crypto_box_BEFORENMBYTES);
+  assert(skey.length >= crypto_box_BEFORENMBYTES);
   ubyte s[32];
   crypto_scalarmult(s, sk, pk);
-  crypto_core_hsalsa20(k, _0, s, sigma);
+  crypto_core_hsalsa20(skey, _0, s, sigma);
 }
 
 /**
  * The crypto_box_afternm() function encrypts and authenticates
- * a message 'm' using a secret key 'k' and a nonce 'n'.
+ * a message 'msg' using a secret key 'key' and a nonce 'nonce'.
  * The crypto_box_afternm() function returns the resulting ciphertext 'c'.
  *
  * Params:
  *  c = resulting cyphertext
- *  m = message
- *  n = nonce
- *  k = secret
+ *  msg = message
+ *  nonce = nonce
+ *  key = secret
  *
  * Returns:
  *  success flag and cyphertext in 'c'
  */
-bool crypto_box_afternm() (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] k) {
-  assert(n.length >= crypto_box_NONCEBYTES);
-  assert(k.length >= crypto_box_BEFORENMBYTES);
-  return crypto_secretbox(c, m, n, k);
+bool crypto_box_afternm() (ubyte[] c, const(ubyte)[] msg, const(ubyte)[] nonce, const(ubyte)[] key) {
+  assert(nonce.length >= crypto_box_NONCEBYTES);
+  assert(key.length >= crypto_box_BEFORENMBYTES);
+  return crypto_secretbox(c, msg, nonce, key);
 }
 
 /**
  * The crypto_box_open_afternm() function verifies and decrypts
- * a ciphertext 'c' using a secret key 'k' and a nonce 'n'.
- * The crypto_box_open_afternm() function returns the resulting message 'm'.
+ * a ciphertext 'c' using a secret key 'key' and a nonce 'nonce'.
+ * The crypto_box_open_afternm() function returns the resulting message 'msg'.
  *
  * Params:
- *  m = resulting message
+ *  msg = resulting message
  *  c = cyphertext
- *  n = nonce
- *  k = secret
+ *  nonce = nonce
+ *  key = secret
  *
  * Returns:
- *  success flag and resulting message in 'm'
+ *  success flag and resulting message in 'msg'
  */
-bool crypto_box_open_afternm() (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, const(ubyte)[] k) {
-  assert(n.length >= crypto_box_NONCEBYTES);
-  assert(k.length >= crypto_box_BEFORENMBYTES);
-  return crypto_secretbox_open(m, c, n, k);
+bool crypto_box_open_afternm() (ubyte[] msg, const(ubyte)[] c, const(ubyte)[] nonce, const(ubyte)[] key) {
+  assert(nonce.length >= crypto_box_NONCEBYTES);
+  assert(key.length >= crypto_box_BEFORENMBYTES);
+  return crypto_secretbox_open(msg, c, nonce, key);
 }
 
 /**
- * The crypto_box() function encrypts and authenticates a message 'm'
+ * The crypto_box() function encrypts and authenticates a message 'msg'
  * using the sender's secret key 'sk', the receiver's public key 'pk',
- * and a nonce 'n'. The crypto_box() function returns the resulting ciphertext 'c'.
+ * and a nonce 'nonce'. The crypto_box() function returns the resulting ciphertext 'c'.
  *
  * Params:
  *  c = resulting cyphertext
- *  m = message
- *  n = nonce
+ *  msg = message
+ *  nonce = nonce
  *  pk = receiver's public key
  *  sk = sender's secret key
  *
  * Returns:
  *  success flag and cyphertext in 'c'
  */
-bool crypto_box() (ubyte[] c, const(ubyte)[] m, const(ubyte)[] n, const(ubyte)[] pk, const(ubyte)[] sk) {
-  assert(n.length >= crypto_box_NONCEBYTES);
+bool crypto_box() (ubyte[] c, const(ubyte)[] msg, const(ubyte)[] nonce, const(ubyte)[] pk, const(ubyte)[] sk) {
+  assert(nonce.length >= crypto_box_NONCEBYTES);
   assert(pk.length >= crypto_box_PUBLICKEYBYTES);
   assert(sk.length >= crypto_box_SECRETKEYBYTES);
   ubyte k[32];
   crypto_box_beforenm(k, pk, sk);
-  return crypto_box_afternm(c, m, n, k);
+  return crypto_box_afternm(c, msg, nonce, k);
 }
 
 /**
  * The crypto_box_open() function verifies and decrypts
  * a ciphertext 'c' using the receiver's secret key 'sk',
- * the sender's public key 'pk', and a nonce 'n'.
- * The crypto_box_open() function returns the resulting message 'm'.
+ * the sender's public key 'pk', and a nonce 'nonce'.
+ * The crypto_box_open() function returns the resulting message 'msg'.
  *
  * Params:
- *  m = resulting message
+ *  msg = resulting message
  *  c = cyphertext
- *  n = nonce
+ *  nonce = nonce
  *  pk = receiver's public key
  *  sk = sender's secret key
  *
  * Returns:
- *  success flag and message in 'm'
+ *  success flag and message in 'msg'
  */
-bool crypto_box_open() (ubyte[] m, const(ubyte)[] c, const(ubyte)[] n, const(ubyte)[] pk, const(ubyte)[] sk) {
-  assert(n.length >= crypto_box_NONCEBYTES);
+bool crypto_box_open() (ubyte[] msg, const(ubyte)[] c, const(ubyte)[] nonce, const(ubyte)[] pk, const(ubyte)[] sk) {
+  assert(nonce.length >= crypto_box_NONCEBYTES);
   assert(pk.length >= crypto_box_PUBLICKEYBYTES);
   assert(sk.length >= crypto_box_SECRETKEYBYTES);
   ubyte k[32];
   crypto_box_beforenm(k, pk, sk);
-  return crypto_box_open_afternm(m, c, n, k);
+  return crypto_box_open_afternm(msg, c, nonce, k);
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") ulong R() (ulong x, int c) { return (x>>c)|(x<<(64-c)); }
@@ -873,33 +922,33 @@ private static immutable ubyte[64] iv = [
 ];
 
 /**
- * The crypto_hash() function hashes a message 'm'.
- * It returns a hash 'out_'. The output length of 'out_' should be at least crypto_hash_BYTES.
+ * The crypto_hash() function hashes a message 'msg'.
+ * It returns a hash 'output'. The output length of 'output' should be at least crypto_hash_BYTES.
  *
  * Params:
- *  out_ = resulting hash
- *  m = message
+ *  output = resulting hash
+ *  msg = message
  *
  * Returns:
  *  sha512 hash
  */
-void crypto_hash() (ubyte[] out_, const(ubyte)[] m) {
-  assert(out_.length >= crypto_hash_BYTES);
+void crypto_hash() (ubyte[] output, const(ubyte)[] msg) {
+  assert(output.length >= crypto_hash_BYTES);
   ubyte[64] h;
   ubyte[256] x;
-  size_t n = m.length;
+  size_t n = msg.length;
   ulong b = n;
   uint mpos = 0;
 
   for (auto i = 0; i < 64; ++i) h[i] = iv[i];
 
-  crypto_hashblocks(h, m, n);
+  crypto_hashblocks(h, msg, n);
   mpos += n;
   n &= 127;
   mpos -= n;
 
   for (auto i = 0; i < 256; ++i) x[i] = 0;
-  for (auto i = 0; i < n; ++i) x[i] = m[mpos+i];
+  for (auto i = 0; i < n; ++i) x[i] = msg[mpos+i];
   x[cast(uint)n] = 128;
 
   n = 256-128*(n<112);
@@ -907,7 +956,7 @@ void crypto_hash() (ubyte[] out_, const(ubyte)[] m) {
   ts64(x[cast(uint)(n-8)..$], b<<3);
   crypto_hashblocks(h, x, n);
 
-  for (auto i = 0; i < 64; ++i) out_[i] = h[i];
+  for (auto i = 0; i < 64; ++i) output[i] = h[i];
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void add() (ref long[16][4] p, ref long[16][4] q) {
@@ -1035,23 +1084,23 @@ private @tweetNaCl_gdc_attribute("forceinline") void reduce() (ubyte[] r) {
 }
 
 /**
- * The crypto_sign() function signs a message 'm' using the sender's secret key 'sk'.
+ * The crypto_sign() function signs a message 'msg' using the sender's secret key 'sk'.
  * The crypto_sign() function returns the resulting signed message.
  *
  * Params:
- *  sm = buffer to receive signed message, must be of size at least m.length+64
- *  m == message
+ *  sm = buffer to receive signed message, must be of size at least msg.length+64
+ *  msg == message
  *  sk == secret key, slice size must be at least crypto_sign_SECRETKEYBYTES, extra ignored
  *
  * Returns:
  *  signed message
  */
-void crypto_sign() (ubyte[] sm, const(ubyte)[] m, const(ubyte)[] sk) {
+void crypto_sign() (ubyte[] sm, const(ubyte)[] msg, const(ubyte)[] sk) {
   assert(sk.length >= crypto_sign_SECRETKEYBYTES);
   ubyte[64] d, h, r;
   ulong[64] x;
   long[16][4] p;
-  size_t n = m.length;
+  size_t n = msg.length;
   size_t smlen = n+64;
   assert(sm.length >= smlen);
 
@@ -1060,7 +1109,7 @@ void crypto_sign() (ubyte[] sm, const(ubyte)[] m, const(ubyte)[] sk) {
   d[31] &= 127;
   d[31] |= 64;
 
-  for (auto i = 0; i < n; ++i) sm[64+i] = m[i];
+  for (auto i = 0; i < n; ++i) sm[64+i] = msg[i];
   for (auto i = 0; i < 32; ++i) sm[32+i] = d[32+i];
 
   crypto_hash(r, sm[32../*$*/32+n+32]/*, n+32*/);
@@ -1079,25 +1128,25 @@ void crypto_sign() (ubyte[] sm, const(ubyte)[] m, const(ubyte)[] sk) {
 }
 
 /**
- * The crypto_sign() function signs a message 'm' using the sender's secret key 'sk'.
+ * The crypto_sign() function signs a message 'msg' using the sender's secret key 'sk'.
  * The crypto_sign() function returns the resulting signed message.
  *
  * WARNING! This function allocates!
  *
  * Params:
- *  m == message
+ *  msg == message
  *  sk == secret key, slice size must be at least crypto_sign_SECRETKEYBYTES, extra ignored
  *
  * Returns:
  *  signed message
  */
-ubyte[] crypto_sign() (const(ubyte)[] m, const(ubyte)[] sk) {
+ubyte[] crypto_sign() (const(ubyte)[] msg, const(ubyte)[] sk) {
   assert(sk.length >= crypto_sign_SECRETKEYBYTES);
   ubyte[] sm;
-  size_t n = m.length;
+  size_t n = msg.length;
   size_t smlen = n+64;
   sm.length = smlen;
-  crypto_sign(sm, m, sk);
+  crypto_sign(sm, msg, sk);
   return sm;
 }
 
@@ -1141,27 +1190,27 @@ private @tweetNaCl_gdc_attribute("forceinline") bool unpackneg() (ref long[16][4
  * 'sm' using the receiver's public key 'pk'.
  *
  * Params:
- *  m = decrypted message, last 64 bytes are useless zeroes, must be of size at least sm.length
+ *  msg = decrypted message, last 64 bytes are useless zeroes, must be of size at least sm.length
  *  sm == signed message
  *  pk == public key, slice size must be at least crypto_sign_PUBLICKEYBYTES, extra ignored
  *
  * Returns:
  *  success flag
  */
-bool crypto_sign_open() (ubyte[] m, const(ubyte)[] sm, const(ubyte)[] pk) {
+bool crypto_sign_open() (ubyte[] msg, const(ubyte)[] sm, const(ubyte)[] pk) {
   assert(pk.length >= crypto_sign_PUBLICKEYBYTES);
   ubyte[32] t;
   ubyte[64] h;
   long[16][4] p, q;
   size_t n = sm.length;
-  assert(m.length >= n);
+  assert(msg.length >= n);
 
   if (n < 64) return false;
 
   if (!unpackneg(q, pk)) return false;
-  for (auto i = 0; i < n; ++i) m[i] = sm[i];
-  for (auto i = 0; i < 32; ++i) m[i+32] = pk[i];
-  crypto_hash(h, m/*, n*/);
+  for (auto i = 0; i < n; ++i) msg[i] = sm[i];
+  for (auto i = 0; i < 32; ++i) msg[i+32] = pk[i];
+  crypto_hash(h, msg/*, n*/);
   reduce(h);
   scalarmult(p, q, h);
 
@@ -1171,12 +1220,12 @@ bool crypto_sign_open() (ubyte[] m, const(ubyte)[] sm, const(ubyte)[] pk) {
 
   n -= 64;
   if (!crypto_verify_32(sm, t)) {
-    for (auto i = 0; i < n; ++i) m[i] = 0;
+    for (auto i = 0; i < n; ++i) msg[i] = 0;
     return false;
   }
 
-  for (auto i = 0; i < n; ++i) m[i] = sm[i+64];
-  for (auto i = n; i < n+64; ++i) m[i] = 0;
+  for (auto i = 0; i < n; ++i) msg[i] = sm[i+64];
+  for (auto i = n; i < n+64; ++i) msg[i] = 0;
 
   return true;
 }
@@ -1197,10 +1246,10 @@ bool crypto_sign_open() (ubyte[] m, const(ubyte)[] sm, const(ubyte)[] pk) {
  *  decrypted message or null on error
  */
 ubyte[] crypto_sign_open() (const(ubyte)[] sm, const(ubyte)[] pk) {
-  ubyte[] m;
-  m.length = sm.length;
-  if (!crypto_sign_open(m, sm, pk)) return null;
-  return m[0..sm.length-64]; // remove signature
+  ubyte[] msg;
+  msg.length = sm.length;
+  if (!crypto_sign_open(msg, sm, pk)) return null;
+  return msg[0..sm.length-64]; // remove signature
 }
 
 
@@ -1735,7 +1784,7 @@ unittest {
     ,0x32,0x2d,0x62,0x79,0x74,0x65,0x20,0x6b
     ] ;
 
-    static ubyte[16] in_ = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ;
+    static ubyte[16] input = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ;
 
     static ubyte output[64*256*256];
 
@@ -1744,13 +1793,13 @@ unittest {
     static immutable ubyte[64] res = [0x2b,0xd8,0xe7,0xdb,0x68,0x77,0x53,0x9e,0x4f,0x2b,0x29,0x5e,0xe4,0x15,0xcd,0x37,0x8a,0xe2,0x14,0xaa,0x3b,0xeb,0x3e,0x08,0xe9,0x11,0xa5,0xbd,0x4a,0x25,0xe6,0xac,0x16,0xca,0x28,0x3c,0x79,0xc3,0x4c,0x08,0xc9,0x9f,0x7b,0xdb,0x56,0x01,0x11,0xe8,0xca,0xc1,0xae,0x65,0xee,0xa0,0x8a,0xc3,0x84,0xd7,0xa5,0x91,0x46,0x1a,0xb6,0xe3];
 
     int pos = 0;
-    for (auto i = 0; i < 8; ++i) in_[i] = noncesuffix[i];
+    for (auto i = 0; i < 8; ++i) input[i] = noncesuffix[i];
     do {
       do {
-        crypto_core_salsa20(output[pos..$],in_,secondkey,c);
+        crypto_core_salsa20(output[pos..$],input,secondkey,c);
         pos += 64;
-      } while (++in_[8]);
-    } while (++in_[9]);
+      } while (++input[8]);
+    } while (++input[9]);
     crypto_hash(h,output);
     assert(h == res);
   }
@@ -1765,7 +1814,7 @@ unittest {
     ,209,210,211,212,213,214,215,216
     ] ;
 
-    static immutable ubyte[16] in_ = [
+    static immutable ubyte[16] input = [
      101,102,103,104,105,106,107,108
     ,109,110,111,112,113,114,115,116
     ] ;
@@ -1775,7 +1824,7 @@ unittest {
     , 50, 45, 98,121,116,101, 32,107
     ] ;
 
-    ubyte[64] out_;
+    ubyte[64] output;
 
     static immutable ubyte[64] res = [
       69, 37, 68, 39, 41, 15,107,193
@@ -1788,8 +1837,8 @@ unittest {
     ,192,195,132,236,234,103,246, 74
     ];
 
-    crypto_core_salsa20(out_,in_,k,c);
-    assert(out_ == res);
+    crypto_core_salsa20(output,input,k,c);
+    assert(output == res);
   }
   core4();
 
@@ -1802,7 +1851,7 @@ unittest {
     ,0x9f,0x81,0x96,0x92,0x82,0x7e,0x57,0x77
     ] ;
 
-    static immutable ubyte[16] in_ = [
+    static immutable ubyte[16] input = [
      0x81,0x91,0x8e,0xf2,0xa5,0xe0,0xda,0x9b
     ,0x3e,0x90,0x60,0x52,0x1e,0x4b,0xb3,0x52
     ] ;
@@ -1812,7 +1861,7 @@ unittest {
     , 50, 45, 98,121,116,101, 32,107
     ] ;
 
-    ubyte out_[32];
+    ubyte output[32];
 
     static immutable ubyte[32] res = [
      0xbc,0x1b,0x30,0xfc,0x07,0x2c,0xc1,0x40
@@ -1821,8 +1870,8 @@ unittest {
     ,0xe1,0x8c,0xba,0x8f,0xd8,0x21,0xa7,0xcd
     ];
 
-    crypto_core_hsalsa20(out_,in_,k,c);
-    assert(out_ == res);
+    crypto_core_hsalsa20(output,input,k,c);
+    assert(output == res);
   }
   core5();
 
@@ -1835,7 +1884,7 @@ unittest {
     ,0x9f,0x81,0x96,0x92,0x82,0x7e,0x57,0x77
     ] ;
 
-    static immutable ubyte[16] in_ = [
+    static immutable ubyte[16] input = [
      0x81,0x91,0x8e,0xf2,0xa5,0xe0,0xda,0x9b
     ,0x3e,0x90,0x60,0x52,0x1e,0x4b,0xb3,0x52
     ] ;
@@ -1845,7 +1894,7 @@ unittest {
     , 50, 45, 98,121,116,101, 32,107
     ] ;
 
-    ubyte out_[64];
+    ubyte output[64];
 
     static immutable ubyte[32] res = [
      0xbc,0x1b,0x30,0xfc,0x07,0x2c,0xc1,0x40
@@ -1869,15 +1918,15 @@ unittest {
       }
     }
 
-    crypto_core_salsa20(out_,in_,k,c);
-    print(out_,c);
-    print(out_[20..$],c[4..$]);
-    print(out_[40..$],c[8..$]);
-    print(out_[60..$],c[12..$]);
-    print(out_[24..$],in_);
-    print(out_[28..$],in_[4..$]);
-    print(out_[32..$],in_[8..$]);
-    print(out_[36..$],in_[12..$]);
+    crypto_core_salsa20(output,input,k,c);
+    print(output,c);
+    print(output[20..$],c[4..$]);
+    print(output[40..$],c[8..$]);
+    print(output[60..$],c[12..$]);
+    print(output[24..$],input);
+    print(output[28..$],input[4..$]);
+    print(output[32..$],input[8..$]);
+    print(output[36..$],input[12..$]);
     assert(pp == res);
   }
   core6();

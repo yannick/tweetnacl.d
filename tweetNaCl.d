@@ -201,7 +201,7 @@ body {
 }
 
 
-private void salsa_core(alias type) (ubyte[] output, const(ubyte)[] input, const(ubyte)[] key, const(ubyte)[] constant) @safe nothrow
+private void salsa_core(string type) (ubyte[] output, const(ubyte)[] input, const(ubyte)[] key, const(ubyte)[] constant) @safe nothrow
 if (type == "salsa" || type == "hsalsa") // constraint
 in {
   // magic!

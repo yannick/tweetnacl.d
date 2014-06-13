@@ -285,13 +285,12 @@ in {
   assert(msg.length == 0 || output.length <= msg.length);
 }
 body {
-  ubyte[16] z = void;
+  ubyte[16] z; // autoclear
   ubyte[64] x = void;
   uint u;
   uint cpos = 0, mpos = 0;
   size_t b = output.length;
   if (!b) return;
-  z[] = 0;
   z[0..8] = nonce[0..8];
   while (b >= 64) {
     crypto_core_salsa20(x, z, key, sigma);
@@ -418,35 +417,39 @@ in {
   assert(output.length >= crypto_onetimeauth_BYTES);
 }
 body {
-  uint s, i, j, u;
-  uint[17] x = void, r = void, h = void, c = void, g = void;
+  uint s, u;
+  uint[17] x = void, r = void, h/*autoclear*/, c = void, g = void;
   uint mpos = 0;
   size_t n = msg.length;
 
-  for (j = 0; j < 17; ++j) r[j] = h[j] = 0;
-  for (j = 0; j < 16; ++j) r[j] = key[j];
-  r[3]&=15;
-  r[4]&=252;
-  r[7]&=15;
-  r[8]&=252;
-  r[11]&=15;
-  r[12]&=252;
-  r[15]&=15;
+  foreach (i; 0..16) r[i] = key[i];
+  r[16..17] = 0;
+
+  r[3] &= 15;
+  r[4] &= 252;
+  r[7] &= 15;
+  r[8] &= 252;
+  r[11] &= 15;
+  r[12] &= 252;
+  r[15] &= 15;
 
   while (n > 0) {
-    for (j = 0; j < 17; ++j) c[j] = 0;
-    for (j = 0; j < 16 && j < n; ++j) c[j] = msg[mpos+j];
-    c[j] = 1;
-    mpos += j;
-    n -= j;
-    add1305(h, c);
-    for (i = 0; i < 17; ++i) {
-      x[i] = 0;
-      for (j = 0; j < 17; ++j) x[i] += h[j]*(j <= i ? r[i-j] : 320*r[i+17-j]);
+    c[0..17] = 0;
+    {
+      size_t jj;
+      for (jj = 0; jj < 16 && jj < n; ++jj) c[jj] = msg[mpos+jj];
+      c[jj] = 1;
+      mpos += jj;
+      n -= jj;
     }
-    for (i = 0; i < 17; ++i) h[i] = x[i];
+    add1305(h, c);
+    foreach (i; 0..17) {
+      x[i] = 0;
+      foreach (j; 0..17) x[i] += h[j]*(j <= i ? r[i-j] : 320*r[i+17-j]);
+    }
+    h[] = x[];
     u = 0;
-    for (j = 0; j < 16; ++j) {
+    foreach (j; 0..16) {
       u += h[j];
       h[j] = u&255;
       u >>= 8;
@@ -454,23 +457,24 @@ body {
     u += h[16];
     h[16] = u&3;
     u = 5*(u>>2);
-    for (j = 0; j < 16; ++j) {
+    foreach (j; 0..16) {
       u += h[j];
       h[j] = u&255;
       u >>= 8;
     }
-    u += h[16]; h[16] = u;
+    u += h[16];
+    h[16] = u;
   }
 
-  for (j = 0; j < 17; ++j) g[j] = h[j];
+  g[] = h[];
   add1305(h, minusp);
   s = -(h[16]>>7);
-  for (j = 0; j < 17; ++j) h[j] ^= s&(g[j]^h[j]);
+  foreach (j; 0..17) h[j] ^= s&(g[j]^h[j]);
 
-  for (j = 0; j < 16; ++j) c[j] = key[j+16];
+  foreach (j; 0..16) c[j] = key[j+16];
   c[16] = 0;
   add1305(h, c);
-  for (j = 0; j < 16; ++j) output[j] = cast(ubyte)(h[j]&0xff);
+  foreach (j; 0..16) output[j] = cast(ubyte)(h[j]&0xff);
 }
 
 /**
@@ -517,10 +521,9 @@ in {
 body {
   //c.length = msg.length+crypto_secretbox_ZEROBYTES;
   if (c is null || c.length < 32) return false;
-  //assert(msg.length >= c.length);
   crypto_stream_xor(c, msg, nonce, key);
   crypto_onetimeauth(c[16..$], c[32..$], c);
-  for (auto i = 0; i < 16; ++i) c[i] = 0;
+  c[0..16] = 0;
   //return c[crypto_secretbox_BOXZEROBYTES..$];
   return true;
 }
@@ -550,52 +553,48 @@ body {
   crypto_stream(x, nonce, key);
   if (!crypto_onetimeauth_verify(c[16..$], c[32../*$*/32+(output.length-32)], x)) return false;
   crypto_stream_xor(output, c, nonce, key);
-  for (auto i = 0; i < 32; ++i) output[i] = 0;
+  output[0..32] = 0;
   return true;
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void set25519() (long[/*16*/] r, const(long)[/*16*/] a) @safe nothrow {
-  for (auto i = 0; i < 16; ++i) r[i] = a[i];
-}
 
 private @tweetNaCl_gdc_attribute("forceinline") void car25519() (long[] o) @safe nothrow {
-  long c;
-  for (auto i = 0; i < 16; ++i) {
-    o[i]+=(1<<16);
-    c = o[i]>>16;
-    o[(i+1)*(i<15)]+=c-1+37*(c-1)*(i==15);
-    o[i]-=c<<16;
+  foreach (i; 0..16) {
+    o[i] += (1<<16);
+    long c = o[i]>>16;
+    o[(i+1)*(i<15)] += c-1+37*(c-1)*(i==15);
+    o[i] -= c<<16;
   }
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void sel25519() (long[] p,long[] q, int b) @safe nothrow {
-  long t, c = ~(b-1);
-  for (auto i = 0; i < 16; ++i) {
-    t= c&(p[i]^q[i]);
-    p[i]^=t;
-    q[i]^=t;
+  long c = ~(b-1);
+  foreach (i; 0..16) {
+    long t = c&(p[i]^q[i]);
+    p[i] ^= t;
+    q[i] ^= t;
   }
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void pack25519() (ubyte[] o, const(long)[] n) @safe nothrow {
   int b;
-  long[16] m, t;
-  for (auto i = 0; i < 16; ++i) t[i] = n[i];
+  long[16] m = void, t = void;
+  t[0..16] = n[0..16];
   car25519(t);
   car25519(t);
   car25519(t);
-  for (auto j = 0; j < 2; ++j) {
+  foreach (j; 0..2) {
     m[0] = t[0]-0xffed;
-    for(auto i = 1; i < 15; ++i) {
+    foreach (i; 1..15) {
       m[i] = t[i]-0xffff-((m[i-1]>>16)&1);
-      m[i-1]&=0xffff;
+      m[i-1] &= 0xffff;
     }
     m[15] = t[15]-0x7fff-((m[14]>>16)&1);
     b = (m[15]>>16)&1;
-    m[14]&=0xffff;
+    m[14] &= 0xffff;
     sel25519(t, m, 1-b);
   }
-  for (auto i = 0; i < 16; ++i) {
+  foreach (i; 0..16) {
     o[2*i] = t[i]&0xff;
     o[2*i+1] = (t[i]>>8)&0xff;
   }
@@ -609,30 +608,29 @@ private @tweetNaCl_gdc_attribute("forceinline") bool neq25519() (const(long)[] a
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") ubyte par25519() (const(long)[] a) @safe nothrow {
-  ubyte d[32];
+  ubyte d[32] = void;
   pack25519(d, a);
   return d[0]&1;
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void unpack25519() (long[] o, const(ubyte)[] n) @safe nothrow {
-  for (auto i = 0; i < 16; ++i) o[i] = n[2*i]+(cast(long)n[2*i+1]<<8);
-  o[15]&=0x7fff;
+  foreach (i; 0..16) o[i] = n[2*i]+(cast(long)n[2*i+1]<<8);
+  o[15] &= 0x7fff;
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void A() (long[] o, const(long)[] a, const(long)[] b) @safe nothrow {
-  for (auto i = 0; i < 16; ++i) o[i] = a[i]+b[i];
+  foreach (i; 0..16) o[i] = a[i]+b[i];
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void Z() (long[] o, const(long)[] a, const(long)[] b) @safe nothrow {
-  for (auto i = 0; i < 16; ++i) o[i] = a[i]-b[i];
+  foreach (i; 0..16) o[i] = a[i]-b[i];
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void M() (long[] o, const(long)[] a, const(long)[] b) @safe nothrow {
-  long[31] t;
-  for (auto i = 0; i < 31; ++i) t[i] = 0;
-  for (auto i = 0; i < 16; ++i) for (auto j = 0; j < 16; ++j) t[i+j]+=a[i]*b[j];
-  for (auto i = 0; i < 15; ++i) t[i]+=38*t[i+16];
-  for (auto i = 0; i < 16; ++i) o[i] = t[i];
+  long[31] t; // automatically becomes 0
+  foreach (i; 0..16) foreach (j; 0..16) t[i+j] += a[i]*b[j];
+  foreach (i; 0..15) t[i] += 38*t[i+16];
+  o[0..16] = t[0..16];
   car25519(o);
   car25519(o);
 }
@@ -642,23 +640,23 @@ private @tweetNaCl_gdc_attribute("forceinline") void S() (long[] o, const(long)[
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void inv25519() (long[] o, const(long)[] i) @safe nothrow {
-  long[16] c;
-  for (auto a = 0; a < 16; ++a) c[a] = i[a];
-  for(auto a = 253; a >= 0; --a) {
+  long[16] c = void;
+  c[] = i[0..16];
+  for (auto a = 253; a >= 0; --a) {
     S(c, c);
-    if (a !=2 && a != 4) M(c, c, i);
+    if (a != 2 && a != 4) M(c, c, i);
   }
-  for (auto a = 0; a < 16; ++a) o[a] = c[a];
+  o[0..16] = c[];
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void pow2523() (long[] o, const(long)[] i) @safe nothrow {
-  long[16] c;
-  for (auto a = 0; a < 16; ++a) c[a] = i[a];
+  long[16] c = void;
+  c[] = i[0..16];
   for(auto a = 250; a >= 0; --a) {
     S(c, c);
     if (a != 1) M(c, c, i);
   }
-  for (auto a = 0; a < 16; ++a) o[a] = c[a];
+  o[0..16] = c[];
 }
 
 /* FIXME!
@@ -671,25 +669,27 @@ private @tweetNaCl_gdc_attribute("forceinline") void pow2523() (long[] o, const(
  * Returns:
  *  resulting group element 'q' of length crypto_scalarmult_BYTES.
  */
-private void crypto_scalarmult (ubyte[] q, const(ubyte)[] n, const(ubyte)[] p) @safe nothrow {
+private void crypto_scalarmult (ubyte[] q, const(ubyte)[] n, const(ubyte)[] p) @safe nothrow
+in {
   assert(q.length == crypto_scalarmult_BYTES);
   assert(n.length == crypto_scalarmult_BYTES);
   assert(p.length == crypto_scalarmult_BYTES);
-  int i;
-  ubyte z[32];
-  long[80] x;
+}
+body {
+  ubyte[32] z = void;
+  long[80] x = void;
   long r;
-  long[16] a, b, c, d, e, f;
-  for (i = 0; i < 31; ++i) z[i] = n[i];
+  long[16] a = void, b = void, c = void, d = void, e = void, f = void;
+  z[] = n[0..32];
   z[31] = (n[31]&127)|64;
-  z[0]&=248;
+  z[0] &= 248;
   unpack25519(x, p);
-  for (i = 0; i < 16; ++i) {
+  foreach (i; 0..16) {
     b[i] = x[i];
     d[i] = a[i] = c[i] = 0;
   }
   a[0] = d[0] = 1;
-  for (i = 254; i >= 0; --i) {
+  for (int i = 254; i >= 0; --i) {
     r = (z[i>>3]>>(i&7))&1;
     sel25519(a, b, cast(int)r);
     sel25519(c, d, cast(int)r);
@@ -714,7 +714,7 @@ private void crypto_scalarmult (ubyte[] q, const(ubyte)[] n, const(ubyte)[] p) @
     sel25519(a, b, cast(int)r);
     sel25519(c, d, cast(int)r);
   }
-  for (i = 0; i < 16; ++i) {
+  foreach (i; 0..16) {
     x[i+16] = a[i];
     x[i+32] = c[i];
     x[i+48] = b[i];
@@ -735,9 +735,12 @@ private void crypto_scalarmult (ubyte[] q, const(ubyte)[] n, const(ubyte)[] p) @
  * Returns:
  *  resulting group element 'q' of length crypto_scalarmult_BYTES.
  */
-private void crypto_scalarmult_base() (ubyte[] q, const(ubyte)[] n) @safe nothrow {
+private void crypto_scalarmult_base() (ubyte[] q, const(ubyte)[] n) @safe nothrow
+in {
   assert(q.length == crypto_scalarmult_BYTES);
   assert(n.length == crypto_scalarmult_SCALARBYTES);
+}
+body {
   crypto_scalarmult(q, n, _9);
 }
 
@@ -752,7 +755,7 @@ private void crypto_scalarmult_base() (ubyte[] q, const(ubyte)[] n) @safe nothro
  * Returns:
  *  pair of new keys
  */
-void crypto_box_keypair() (ubyte[] pk, ubyte[] sk)
+void crypto_box_keypair() (ubyte[] pk, ubyte[] sk) @trusted
 in {
   assert(pk.length >= crypto_box_PUBLICKEYBYTES);
   assert(sk.length >= crypto_box_SECRETKEYBYTES);
@@ -923,30 +926,26 @@ private void crypto_hashblocks (ubyte[] x, const(ubyte)[] m, ulong n) @safe noth
   ulong[16] w = void;
   ulong t;
   uint mpos = 0;
-
-  for (auto i = 0; i < 8; ++i) z[i] = a[i] = dl64(x[8*i..$]);
-
+  foreach (i; 0..8) z[i] = a[i] = dl64(x[8*i..$]);
   while (n >= 128) {
-    for (auto i = 0; i < 16; ++i) w[i] = dl64(m[mpos+8*i..$]);
-
-    for (auto i = 0; i < 80; ++i) {
-      for (auto j = 0; j < 8; ++j) b[j] = a[j];
+    foreach (i; 0..16) w[i] = dl64(m[mpos+8*i..$]);
+    foreach (i; 0..80) {
+      b[0..8] = a[0..8];
       t = a[7]+Sigma1(a[4])+Ch(a[4], a[5], a[6])+K[i]+w[i%16];
       b[7] = t+Sigma0(a[0])+Maj(a[0], a[1], a[2]);
       b[3] += t;
-      for (auto j = 0; j < 8; ++j) a[(j+1)%8] = b[j];
+      //foreach (j; 0..8) a[(j+1)%8] = b[j];
+      a[1..8] = b[0..7];
+      a[0] = b[7];
       if (i%16 == 15) {
-        for (auto j = 0; j < 16; ++j) w[j] += w[(j+9)%16]+sigma0(w[(j+1)%16])+sigma1(w[(j+14)%16]);
+        foreach (j; 0..16) w[j] += w[(j+9)%16]+sigma0(w[(j+1)%16])+sigma1(w[(j+14)%16]);
       }
     }
-
-    for (auto i = 0; i < 8; ++i) { a[i] += z[i]; z[i] = a[i]; }
-
+    foreach (i; 0..8) { a[i] += z[i]; z[i] = a[i]; }
     mpos += 128;
     n -= 128;
   }
-
-  for (auto i = 0; i < 8; ++i) ts64(x[8*i..$], z[i]);
+  foreach (i; 0..8) ts64(x[8*i..$], z[i]);
 }
 
 private static __gshared immutable ubyte[64] iv = [
@@ -977,28 +976,27 @@ in {
 }
 body {
   ubyte[64] h = void;
-  ubyte[256] x = void;
+  ubyte[256] x; /*autoinit*/
   size_t n = msg.length;
   ulong b = n;
   uint mpos = 0;
 
-  for (auto i = 0; i < 64; ++i) h[i] = iv[i];
+  h[] = iv[];
 
   crypto_hashblocks(h, msg, n);
   mpos += n;
   n &= 127;
   mpos -= n;
 
-  for (auto i = 0; i < 256; ++i) x[i] = 0;
-  for (auto i = 0; i < n; ++i) x[i] = msg[mpos+i];
-  x[cast(uint)n] = 128;
+  x[0..n] = msg[mpos..mpos+n];
+  x[n] = 128;
 
   n = 256-128*(n<112);
-  x[cast(uint)(n-9)] = b>>61;
-  ts64(x[cast(uint)(n-8)..$], b<<3);
+  x[n-9] = b>>61;
+  ts64(x[n-8..$], b<<3);
   crypto_hashblocks(h, x, n);
 
-  for (auto i = 0; i < 64; ++i) output[i] = h[i];
+  output[0..64] = h;
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void add() (ref long[16][4] p, ref long[16][4] q) @safe nothrow {
@@ -1039,10 +1037,10 @@ private @tweetNaCl_gdc_attribute("forceinline") void pack() (ubyte[] r, ref long
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void scalarmult() (ref long[16][4] p, ref long[16][4] q, const(ubyte)[] s) @safe nothrow {
-  set25519(p[0], gf0);
-  set25519(p[1], gf1);
-  set25519(p[2], gf1);
-  set25519(p[3], gf0);
+  p[0][] = gf0[];
+  p[1][] = gf1[];
+  p[2][] = gf1[];
+  p[3][] = gf0[];
   for (auto i = 255; i >= 0; --i) {
     ubyte b = (s[i/8]>>(i&7))&1;
     cswap(p, q, b);
@@ -1054,9 +1052,9 @@ private @tweetNaCl_gdc_attribute("forceinline") void scalarmult() (ref long[16][
 
 private @tweetNaCl_gdc_attribute("forceinline") void scalarbase() (ref long[16][4] p, const(ubyte)[] s) @safe nothrow {
   long[16][4] q = void;
-  set25519(q[0], X);
-  set25519(q[1], Y);
-  set25519(q[2], gf1);
+  q[0][] = X[];
+  q[1][] = Y[];
+  q[2][] = gf1[];
   M(q[3], X, Y);
   scalarmult(p, q, s);
 }
@@ -1205,7 +1203,7 @@ body {
 
 private @tweetNaCl_gdc_attribute("forceinline") bool unpackneg() (ref long[16][4] r, const(ubyte)[] p) @safe nothrow {
   long[16] t = void, chk = void, num = void, den = void, den2 = void, den4 = void, den6 = void;
-  set25519(r[2], gf1);
+  r[2][] = gf1[];
   unpack25519(r[1], p);
   S(num, r[1]);
   M(den, num, D);

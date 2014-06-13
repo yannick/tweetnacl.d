@@ -1024,7 +1024,7 @@ private @tweetNaCl_gdc_attribute("forceinline") void add() (ref long[16][4] p, r
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void cswap() (ref long[16][4] p, ref long[16][4] q, ubyte b) @safe nothrow {
-  for (auto i = 0; i < 4; ++i) sel25519(p[i], q[i], b);
+  foreach (i; 0..4) sel25519(p[i], q[i], b);
 }
 
 private @tweetNaCl_gdc_attribute("forceinline") void pack() (ubyte[] r, ref long[16][4] p) @safe nothrow {
@@ -1041,7 +1041,7 @@ private @tweetNaCl_gdc_attribute("forceinline") void scalarmult() (ref long[16][
   p[1][] = gf1[];
   p[2][] = gf1[];
   p[3][] = gf0[];
-  for (auto i = 255; i >= 0; --i) {
+  for (int i = 255; i >= 0; --i) {
     ubyte b = (s[i/8]>>(i&7))&1;
     cswap(p, q, b);
     add(q, p);
@@ -1070,7 +1070,7 @@ private @tweetNaCl_gdc_attribute("forceinline") void scalarbase() (ref long[16][
  * Returns:
  *  pair of new keys
  */
-void crypto_sign_keypair() (ubyte[] pk, ubyte[] sk)
+void crypto_sign_keypair() (ubyte[] pk, ubyte[] sk) @trusted
 in {
   assert(pk.length >= crypto_sign_PUBLICKEYBYTES);
   assert(sk.length >= crypto_sign_SECRETKEYBYTES);
@@ -1088,7 +1088,7 @@ body {
   scalarbase(p, d);
   pack(pk, p);
 
-  for (auto i = 0; i < 32; ++i) sk[32+i] = pk[i];
+  sk[32..64] = pk[0..32];
 }
 
 private static __gshared immutable ulong[32] L = [
@@ -1109,13 +1109,13 @@ private @tweetNaCl_gdc_attribute("forceinline") void modL() (ubyte[] r, long[] x
     x[i] = 0;
   }
   carry = 0;
-  for (auto j = 0; j < 32; ++j) {
+  foreach (j; 0..32) {
     x[j] += carry-(x[31]>>4)*L[j];
     carry = x[j]>>8;
     x[j] &= 255;
   }
-  for (auto j = 0; j < 32; ++j) x[j] -= carry*L[j];
-  for (auto i = 0; i < 32; ++i) {
+  foreach (j; 0..32) x[j] -= carry*L[j];
+  foreach (i; 0..32) {
     x[i+1] += x[i]>>8;
     r[i] = x[i]&255;
   }
@@ -1123,8 +1123,8 @@ private @tweetNaCl_gdc_attribute("forceinline") void modL() (ubyte[] r, long[] x
 
 private @tweetNaCl_gdc_attribute("forceinline") void reduce() (ubyte[] r) @safe nothrow {
   long[64] x = void;
-  for (auto i = 0; i < 64; ++i) x[i] = cast(ulong)r[i];
-  for (auto i = 0; i < 64; ++i) r[i] = 0;
+  foreach (i; 0..64) x[i] = cast(ulong)r[i];
+  r[0..64] = 0;
   modL(r, x);
 }
 
@@ -1147,7 +1147,7 @@ in {
 }
 body {
   ubyte[64] d = void, h = void, r = void;
-  ulong[64] x = void;
+  ulong[64] x;/*autoinit*/
   long[16][4] p = void;
   size_t n = msg.length;
   size_t smlen = n+64;
@@ -1157,21 +1157,20 @@ body {
   d[31] &= 127;
   d[31] |= 64;
 
-  for (auto i = 0; i < n; ++i) sm[64+i] = msg[i];
-  for (auto i = 0; i < 32; ++i) sm[32+i] = d[32+i];
+  sm[64..64+n] = msg[];
+  sm[32..64] = d[32..64];
 
-  crypto_hash(r, sm[32../*$*/32+n+32]/*, n+32*/);
+  crypto_hash(r, sm[32..32+n+32]);
   reduce(r);
   scalarbase(p, r);
   pack(sm, p);
 
-  for (auto i = 0; i < 32; ++i) sm[i+32] = sk[i+32];
+  sm[32..64] = sk[32..64];
   crypto_hash(h, sm[0..n+64]);
   reduce(h);
 
-  for (auto i = 0; i < 64; ++i) x[i] = 0;
-  for (auto i = 0; i < 32; ++i) x[i] = cast(ulong)r[i];
-  for (auto i = 0; i < 32; ++i) for (auto j = 0; j < 32; ++j) x[i+j] += h[i]*cast(ulong)d[j];
+  foreach (i; 0..32) x[i] = cast(ulong)r[i];
+  foreach (i; 0..32) foreach (j; 0..32) x[i+j] += h[i]*cast(ulong)d[j];
   modL(sm[32..$], cast(long[])x);
 }
 
@@ -1262,9 +1261,9 @@ body {
   if (n < 64) return false;
 
   if (!unpackneg(q, pk)) return false;
-  for (auto i = 0; i < n; ++i) msg[i] = sm[i];
-  for (auto i = 0; i < 32; ++i) msg[i+32] = pk[i];
-  crypto_hash(h, msg/*, n*/);
+  msg[0..n] = sm[];
+  msg[32..64] = pk[0..32];
+  crypto_hash(h, msg);
   reduce(h);
   scalarmult(p, q, h);
 
@@ -1274,12 +1273,12 @@ body {
 
   n -= 64;
   if (!crypto_verify_32(sm, t)) {
-    for (auto i = 0; i < n; ++i) msg[i] = 0;
+    msg[0..n] = 0;
     return false;
   }
 
-  for (auto i = 0; i < n; ++i) msg[i] = sm[i+64];
-  for (auto i = n; i < n+64; ++i) msg[i] = 0;
+  msg[0..n] = sm[64..64+n];
+  msg[n..n+64] = 0;
 
   return true;
 }

@@ -1,14 +1,17 @@
 /*
  * Contributors (alphabetical order)
- *  Daniel J. Bernstein, University of Illinois at Chicago and Technische Universiteit Eindhoven 
- *  Wesley Janssen, Radboud Universiteit Nijmegen 
- *  Tanja Lange, Technische Universiteit Eindhoven 
+ *  Daniel J. Bernstein, University of Illinois at Chicago and Technische Universiteit Eindhoven
+ *  Wesley Janssen, Radboud Universiteit Nijmegen
+ *  Tanja Lange, Technische Universiteit Eindhoven
  *  Peter Schwabe, Radboud Universiteit Nijmegen
  *
  * Ported by Ketmar // Invisible Vector ( ketmar@ketmar.no-ip.org )
  *
  * Public Domain (or WTFPL).
  */
+//k8: yes, i know that this code sux. i know that i should rewrite it to be more 'D-ish'.
+//    i'll not do that. make your own port or do it yourself if you dissatisfied with my
+//    attitude. thank you.
 module tweetNaCl;
 
 // define tweetnacl_enable_inlining to speed up tweetNaCl on GDC

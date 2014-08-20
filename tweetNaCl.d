@@ -88,10 +88,10 @@ enum {
 void function (ubyte[] dest, size_t len) randombytes = null;
 
 
-private static __gshared immutable ubyte[16] _0 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-private static __gshared immutable ubyte[32] _9 = [9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+private immutable ubyte[16] _0 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+private immutable ubyte[32] _9 = [9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
 
-private static __gshared immutable long[16]
+private immutable long[16]
   gf0 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
   gf1 = [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
   _121665 = [0xDB41,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -261,7 +261,7 @@ body {
   salsa_core!"hsalsa"(output, input, key, constant);
 }
 
-private static __gshared immutable immutable(ubyte)[] sigma = cast(immutable(ubyte)[])"expand 32-byte k";
+private immutable(ubyte)[] sigma = cast(immutable(ubyte)[])"expand 32-byte k";
 
 /**
  * The crypto_stream_salsa20_xor() function encrypts a message 'msg' using a secret key 'key'
@@ -396,7 +396,7 @@ private @gcc_inline void add1305() (uint[] h, const(uint)[] c) @safe nothrow {
   }
 }
 
-private static __gshared immutable uint[17] minusp = [5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,252];
+private immutable uint[17] minusp = [5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,252];
 
 /**
  * The crypto_onetimeauth() function authenticates a message 'msg'
@@ -897,7 +897,7 @@ private @gcc_inline ulong Sigma1() (ulong x) @safe nothrow pure { return R(x, 14
 private @gcc_inline ulong sigma0() (ulong x) @safe nothrow pure { return R(x, 1)^R(x, 8)^(x>>7); }
 private @gcc_inline ulong sigma1() (ulong x) @safe nothrow pure { return R(x, 19)^R(x, 61)^(x>>6); }
 
-private static __gshared immutable ulong[80] K = [
+private immutable ulong[80] K = [
   0x428a2f98d728ae22UL, 0x7137449123ef65cdUL, 0xb5c0fbcfec4d3b2fUL, 0xe9b5dba58189dbbcUL,
   0x3956c25bf348b538UL, 0x59f111f1b605d019UL, 0x923f82a4af194f9bUL, 0xab1c5ed5da6d8118UL,
   0xd807aa98a3030242UL, 0x12835b0145706fbeUL, 0x243185be4ee4b28cUL, 0x550c7dc3d5ffb4e2UL,
@@ -947,7 +947,7 @@ private void crypto_hashblocks (ubyte[] x, const(ubyte)[] m, ulong n) @safe noth
   foreach (i; 0..8) ts64(x[8*i..$], z[i]);
 }
 
-private static __gshared immutable ubyte[64] iv = [
+private immutable ubyte[64] iv = [
   0x6a, 0x09, 0xe6, 0x67, 0xf3, 0xbc, 0xc9, 0x08,
   0xbb, 0x67, 0xae, 0x85, 0x84, 0xca, 0xa7, 0x3b,
   0x3c, 0x6e, 0xf3, 0x72, 0xfe, 0x94, 0xf8, 0x2b,
@@ -1090,7 +1090,7 @@ body {
   sk[32..64] = pk[0..32];
 }
 
-private static __gshared immutable ulong[32] L = [
+private immutable ulong[32] L = [
   0xed,0xd3,0xf5,0x5c,0x1a,0x63,0x12,0x58,0xd6,0x9c,0xf7,0xa2,0xde,0xf9,0xde,0x14,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x10
 ];
 

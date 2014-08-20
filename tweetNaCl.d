@@ -22,16 +22,12 @@ version(GNU) {
   version=tweetnacl_enable_inlining_off_;
 }
 
-version(tweetnacl_enable_inlining_off_) {
-  private struct tweetNaCl_gdc_Attribute(A...) {
-    A args;
-  }
-  auto tweetNaCl_gdc_attribute(A...)(A args) if(A.length > 0 && is(A[0] == string)) {
-    return tweetNaCl_gdc_Attribute!A(args);
-  }
+version(tweetnacl_enable_inlining_on_) {
+  static import gcc.attribute;
+  private enum gcc_inline = gcc.attribute.attribute("forceinline");
 } else {
-  import gcc.attribute;
-  alias tweetNaCl_gdc_attribute = attribute;
+  // hackery for non-gcc compilers
+  private enum gcc_inline;
 }
 
 
@@ -105,7 +101,7 @@ private static __gshared immutable long[16]
   Y = [0x6658, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666],
   I = [0xa0b0, 0x4a0e, 0x1b27, 0xc4ee, 0xe478, 0xad2f, 0x1806, 0x2f43, 0xd7a7, 0x3dfb, 0x0099, 0x2b4d, 0xdf0b, 0x4fc1, 0x2480, 0x2b83];
 
-private @tweetNaCl_gdc_attribute("forceinline") uint ld32() (const(ubyte)[] x) @safe nothrow
+private @gcc_inline uint ld32() (const(ubyte)[] x) @safe nothrow
 in {
   assert(x.length >= 4);
 }
@@ -116,7 +112,7 @@ body {
   return (u<<8)|x[0];
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") ulong dl64() (const(ubyte)[] x) @safe nothrow
+private @gcc_inline ulong dl64() (const(ubyte)[] x) @safe nothrow
 in {
   assert(x.length >= 8);
 }
@@ -131,7 +127,7 @@ body {
   return (u<<8)|x[7];
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void st32() (ubyte[] x, uint u) @safe nothrow
+private @gcc_inline void st32() (ubyte[] x, uint u) @safe nothrow
 in {
   assert(x.length >= 4);
 }
@@ -142,7 +138,7 @@ body {
   x[3] = (u>>24)&0xff;
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void ts64() (ubyte[] x, ulong u) @safe nothrow
+private @gcc_inline void ts64() (ubyte[] x, ulong u) @safe nothrow
 in {
   assert(x.length >= 8);
 }
@@ -157,7 +153,7 @@ body {
   x[7] = u&0xff;
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") bool vn() (const(ubyte)[] x, const(ubyte)[] y) @safe nothrow
+private @gcc_inline bool vn() (const(ubyte)[] x, const(ubyte)[] y) @safe nothrow
 in {
   assert(x.length >= y.length);
 }
@@ -177,7 +173,7 @@ body {
  * Returns:
  *  success flag
  */
-@tweetNaCl_gdc_attribute("forceinline") bool crypto_verify_16() (const(ubyte)[] x, const(ubyte)[] y) @safe nothrow
+@gcc_inline bool crypto_verify_16() (const(ubyte)[] x, const(ubyte)[] y) @safe nothrow
 in {
   assert(x.length >= 16 && y.length >= 16);
 }
@@ -195,7 +191,7 @@ body {
  * Returns:
  *  success flag
  */
-@tweetNaCl_gdc_attribute("forceinline") bool crypto_verify_32() (const(ubyte)[] x, const(ubyte)[] y) @safe nothrow
+@gcc_inline bool crypto_verify_32() (const(ubyte)[] x, const(ubyte)[] y) @safe nothrow
 in {
   assert(x.length >= 32 && y.length >= 32);
 }
@@ -214,7 +210,7 @@ in {
   assert(mixin(`constant.length >= crypto_core_`~type~`20_CONSTBYTES`));
 }
 body {
-  static @tweetNaCl_gdc_attribute("forceinline") uint ROTL32() (uint x, int c) @safe nothrow pure { return (x<<c)|((x&0xffffffff)>>(32-c)); }
+  static @gcc_inline uint ROTL32() (uint x, int c) @safe nothrow pure { return (x<<c)|((x&0xffffffff)>>(32-c)); }
 
   uint[16] w = void, x = void, y = void;
   uint[4] t = void;
@@ -255,12 +251,12 @@ body {
   }
 }
 
-@tweetNaCl_gdc_attribute("forceinline") void crypto_core_salsa20() (ubyte[] output, const(ubyte)[] input, const(ubyte)[] key, const(ubyte)[] constant)
+@gcc_inline void crypto_core_salsa20() (ubyte[] output, const(ubyte)[] input, const(ubyte)[] key, const(ubyte)[] constant)
 @safe nothrow {
   salsa_core!"salsa"(output, input, key, constant);
 }
 
-@tweetNaCl_gdc_attribute("forceinline") void crypto_core_hsalsa20() (ubyte[] output, const(ubyte)[] input, const(ubyte)[] key, const(ubyte)[] constant)
+@gcc_inline void crypto_core_hsalsa20() (ubyte[] output, const(ubyte)[] input, const(ubyte)[] key, const(ubyte)[] constant)
 @safe nothrow {
   salsa_core!"hsalsa"(output, input, key, constant);
 }
@@ -391,7 +387,7 @@ body {
   crypto_stream_salsa20_xor(c, msg, nonce[16..$], s);
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void add1305() (uint[] h, const(uint)[] c) @safe nothrow {
+private @gcc_inline void add1305() (uint[] h, const(uint)[] c) @safe nothrow {
   uint u = 0;
   foreach (j; 0..17) {
     u += h[j]+c[j];
@@ -561,7 +557,7 @@ body {
 }
 
 
-private @tweetNaCl_gdc_attribute("forceinline") void car25519() (long[] o) @safe nothrow {
+private @gcc_inline void car25519() (long[] o) @safe nothrow {
   foreach (i; 0..16) {
     o[i] += (1<<16);
     long c = o[i]>>16;
@@ -570,7 +566,7 @@ private @tweetNaCl_gdc_attribute("forceinline") void car25519() (long[] o) @safe
   }
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void sel25519() (long[] p,long[] q, int b) @safe nothrow {
+private @gcc_inline void sel25519() (long[] p,long[] q, int b) @safe nothrow {
   long c = ~(b-1);
   foreach (i; 0..16) {
     long t = c&(p[i]^q[i]);
@@ -579,7 +575,7 @@ private @tweetNaCl_gdc_attribute("forceinline") void sel25519() (long[] p,long[]
   }
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void pack25519() (ubyte[] o, const(long)[] n) @safe nothrow {
+private @gcc_inline void pack25519() (ubyte[] o, const(long)[] n) @safe nothrow {
   int b;
   long[16] m = void, t = void;
   t[0..16] = n[0..16];
@@ -603,33 +599,33 @@ private @tweetNaCl_gdc_attribute("forceinline") void pack25519() (ubyte[] o, con
   }
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") bool neq25519() (const(long)[] a, const(long)[] b) @safe nothrow {
+private @gcc_inline bool neq25519() (const(long)[] a, const(long)[] b) @safe nothrow {
   ubyte[32] c = void, d = void;
   pack25519(c, a);
   pack25519(d, b);
   return crypto_verify_32(c, d);
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") ubyte par25519() (const(long)[] a) @safe nothrow {
+private @gcc_inline ubyte par25519() (const(long)[] a) @safe nothrow {
   ubyte d[32] = void;
   pack25519(d, a);
   return d[0]&1;
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void unpack25519() (long[] o, const(ubyte)[] n) @safe nothrow {
+private @gcc_inline void unpack25519() (long[] o, const(ubyte)[] n) @safe nothrow {
   foreach (i; 0..16) o[i] = n[2*i]+(cast(long)n[2*i+1]<<8);
   o[15] &= 0x7fff;
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void A() (long[] o, const(long)[] a, const(long)[] b) @safe nothrow {
+private @gcc_inline void A() (long[] o, const(long)[] a, const(long)[] b) @safe nothrow {
   foreach (i; 0..16) o[i] = a[i]+b[i];
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void Z() (long[] o, const(long)[] a, const(long)[] b) @safe nothrow {
+private @gcc_inline void Z() (long[] o, const(long)[] a, const(long)[] b) @safe nothrow {
   foreach (i; 0..16) o[i] = a[i]-b[i];
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void M() (long[] o, const(long)[] a, const(long)[] b) @safe nothrow {
+private @gcc_inline void M() (long[] o, const(long)[] a, const(long)[] b) @safe nothrow {
   long[31] t; // automatically becomes 0
   foreach (i; 0..16) foreach (j; 0..16) t[i+j] += a[i]*b[j];
   foreach (i; 0..15) t[i] += 38*t[i+16];
@@ -638,11 +634,11 @@ private @tweetNaCl_gdc_attribute("forceinline") void M() (long[] o, const(long)[
   car25519(o);
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void S() (long[] o, const(long)[] a) @safe nothrow {
+private @gcc_inline void S() (long[] o, const(long)[] a) @safe nothrow {
   M(o, a, a);
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void inv25519() (long[] o, const(long)[] i) @safe nothrow {
+private @gcc_inline void inv25519() (long[] o, const(long)[] i) @safe nothrow {
   long[16] c = void;
   c[] = i[0..16];
   for (auto a = 253; a >= 0; --a) {
@@ -652,7 +648,7 @@ private @tweetNaCl_gdc_attribute("forceinline") void inv25519() (long[] o, const
   o[0..16] = c[];
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void pow2523() (long[] o, const(long)[] i) @safe nothrow {
+private @gcc_inline void pow2523() (long[] o, const(long)[] i) @safe nothrow {
   long[16] c = void;
   c[] = i[0..16];
   for(auto a = 250; a >= 0; --a) {
@@ -893,13 +889,13 @@ body {
   return crypto_box_open_afternm(msg, c, nonce, k);
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") ulong R() (ulong x, int c) @safe nothrow pure { return (x>>c)|(x<<(64-c)); }
-private @tweetNaCl_gdc_attribute("forceinline") ulong Ch() (ulong x, ulong y, ulong z) @safe nothrow pure { return (x&y)^(~x&z); }
-private @tweetNaCl_gdc_attribute("forceinline") ulong Maj() (ulong x, ulong y, ulong z) @safe nothrow pure { return (x&y)^(x&z)^(y&z); }
-private @tweetNaCl_gdc_attribute("forceinline") ulong Sigma0() (ulong x) @safe nothrow pure { return R(x, 28)^R(x, 34)^R(x, 39); }
-private @tweetNaCl_gdc_attribute("forceinline") ulong Sigma1() (ulong x) @safe nothrow pure { return R(x, 14)^R(x, 18)^R(x, 41); }
-private @tweetNaCl_gdc_attribute("forceinline") ulong sigma0() (ulong x) @safe nothrow pure { return R(x, 1)^R(x, 8)^(x>>7); }
-private @tweetNaCl_gdc_attribute("forceinline") ulong sigma1() (ulong x) @safe nothrow pure { return R(x, 19)^R(x, 61)^(x>>6); }
+private @gcc_inline ulong R() (ulong x, int c) @safe nothrow pure { return (x>>c)|(x<<(64-c)); }
+private @gcc_inline ulong Ch() (ulong x, ulong y, ulong z) @safe nothrow pure { return (x&y)^(~x&z); }
+private @gcc_inline ulong Maj() (ulong x, ulong y, ulong z) @safe nothrow pure { return (x&y)^(x&z)^(y&z); }
+private @gcc_inline ulong Sigma0() (ulong x) @safe nothrow pure { return R(x, 28)^R(x, 34)^R(x, 39); }
+private @gcc_inline ulong Sigma1() (ulong x) @safe nothrow pure { return R(x, 14)^R(x, 18)^R(x, 41); }
+private @gcc_inline ulong sigma0() (ulong x) @safe nothrow pure { return R(x, 1)^R(x, 8)^(x>>7); }
+private @gcc_inline ulong sigma1() (ulong x) @safe nothrow pure { return R(x, 19)^R(x, 61)^(x>>6); }
 
 private static __gshared immutable ulong[80] K = [
   0x428a2f98d728ae22UL, 0x7137449123ef65cdUL, 0xb5c0fbcfec4d3b2fUL, 0xe9b5dba58189dbbcUL,
@@ -1002,7 +998,7 @@ body {
   output[0..64] = h;
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void add() (ref long[16][4] p, ref long[16][4] q) @safe nothrow {
+private @gcc_inline void add() (ref long[16][4] p, ref long[16][4] q) @safe nothrow {
   long[16] a = void, b = void, c = void, d = void, t = void, e = void, f = void, g = void, h = void;
 
   Z(a, p[1], p[0]);
@@ -1026,11 +1022,11 @@ private @tweetNaCl_gdc_attribute("forceinline") void add() (ref long[16][4] p, r
   M(p[3], e, h);
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void cswap() (ref long[16][4] p, ref long[16][4] q, ubyte b) @safe nothrow {
+private @gcc_inline void cswap() (ref long[16][4] p, ref long[16][4] q, ubyte b) @safe nothrow {
   foreach (i; 0..4) sel25519(p[i], q[i], b);
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void pack() (ubyte[] r, ref long[16][4] p) @safe nothrow {
+private @gcc_inline void pack() (ubyte[] r, ref long[16][4] p) @safe nothrow {
   long[16] tx = void, ty = void, zi = void;
   inv25519(zi, p[2]);
   M(tx, p[0], zi);
@@ -1039,7 +1035,7 @@ private @tweetNaCl_gdc_attribute("forceinline") void pack() (ubyte[] r, ref long
   r[31] ^= par25519(tx)<<7;
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void scalarmult() (ref long[16][4] p, ref long[16][4] q, const(ubyte)[] s) @safe nothrow {
+private @gcc_inline void scalarmult() (ref long[16][4] p, ref long[16][4] q, const(ubyte)[] s) @safe nothrow {
   p[0][] = gf0[];
   p[1][] = gf1[];
   p[2][] = gf1[];
@@ -1053,7 +1049,7 @@ private @tweetNaCl_gdc_attribute("forceinline") void scalarmult() (ref long[16][
   }
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void scalarbase() (ref long[16][4] p, const(ubyte)[] s) @safe nothrow {
+private @gcc_inline void scalarbase() (ref long[16][4] p, const(ubyte)[] s) @safe nothrow {
   long[16][4] q = void;
   q[0][] = X[];
   q[1][] = Y[];
@@ -1098,7 +1094,7 @@ private static __gshared immutable ulong[32] L = [
   0xed,0xd3,0xf5,0x5c,0x1a,0x63,0x12,0x58,0xd6,0x9c,0xf7,0xa2,0xde,0xf9,0xde,0x14,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x10
 ];
 
-private @tweetNaCl_gdc_attribute("forceinline") void modL() (ubyte[] r, long[] x) @safe nothrow {
+private @gcc_inline void modL() (ubyte[] r, long[] x) @safe nothrow {
   long carry;
   for (auto i = 63; i >= 32; --i) {
     int j;
@@ -1124,7 +1120,7 @@ private @tweetNaCl_gdc_attribute("forceinline") void modL() (ubyte[] r, long[] x
   }
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") void reduce() (ubyte[] r) @safe nothrow {
+private @gcc_inline void reduce() (ubyte[] r) @safe nothrow {
   long[64] x = void;
   foreach (i; 0..64) x[i] = cast(ulong)r[i];
   r[0..64] = 0;
@@ -1203,7 +1199,7 @@ body {
   return sm;
 }
 
-private @tweetNaCl_gdc_attribute("forceinline") bool unpackneg() (ref long[16][4] r, const(ubyte)[] p) @safe nothrow {
+private @gcc_inline bool unpackneg() (ref long[16][4] r, const(ubyte)[] p) @safe nothrow {
   long[16] t = void, chk = void, num = void, den = void, den2 = void, den4 = void, den6 = void;
   r[2][] = gf1[];
   unpack25519(r[1], p);

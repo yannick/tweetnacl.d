@@ -15,6 +15,7 @@
 module tweetNaCl;
 
 
+public:
 enum {
   crypto_auth_BYTES = 32,
   crypto_auth_KEYBYTES = 32,
@@ -69,13 +70,14 @@ enum {
 
 /// set this callback to good (cryptograpic strong) random bytes generator
 /// you can use /dev/urandom as prng
-void function (ubyte[] dest, size_t len) randombytes = null;
+void delegate (ubyte[] dest, size_t len) randombytes = null;
 
 
-private immutable ubyte[16] zero_ = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-private immutable ubyte[32] nine_ = [9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+private:
+immutable ubyte[16] zero_ = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+immutable ubyte[32] nine_ = [9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
 
-private immutable long[16]
+immutable long[16]
   gf0 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
   gf1 = [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
   xx121665 = [0xDB41,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -85,7 +87,7 @@ private immutable long[16]
   Y = [0x6658, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666],
   I = [0xa0b0, 0x4a0e, 0x1b27, 0xc4ee, 0xe478, 0xad2f, 0x1806, 0x2f43, 0xd7a7, 0x3dfb, 0x0099, 0x2b4d, 0xdf0b, 0x4fc1, 0x2480, 0x2b83];
 
-private uint ld32() (const(ubyte)[] x)
+uint ld32() (const(ubyte)[] x)
 in {
   assert(x.length >= 4);
 }
@@ -96,7 +98,7 @@ body {
   return (u<<8)|x[0];
 }
 
-private ulong dl64() (const(ubyte)[] x)
+ulong dl64() (const(ubyte)[] x)
 in {
   assert(x.length >= 8);
 }
@@ -111,7 +113,7 @@ body {
   return (u<<8)|x[7];
 }
 
-private void st32() (ubyte[] x, uint u)
+void st32() (ubyte[] x, uint u)
 in {
   assert(x.length >= 4);
 }
@@ -122,7 +124,7 @@ body {
   x[3] = (u>>24)&0xff;
 }
 
-private void ts64() (ubyte[] x, ulong u)
+void ts64() (ubyte[] x, ulong u)
 in {
   assert(x.length >= 8);
 }
@@ -137,7 +139,7 @@ body {
   x[7] = u&0xff;
 }
 
-private bool vn() (const(ubyte)[] x, const(ubyte)[] y)
+bool vn() (const(ubyte)[] x, const(ubyte)[] y)
 in {
   assert(x.length >= y.length);
 }
@@ -147,6 +149,7 @@ body {
   return (1&((d-1)>>8)) != 0;
 }
 
+public:
 /**
  * The crypto_verify_16() function checks that strings 'x' and 'y' has same content.
  *
@@ -542,7 +545,8 @@ body {
 }
 
 
-private void car25519() (long[] o) {
+private:
+void car25519() (long[] o) {
   foreach (i; 0..16) {
     o[i] += (1<<16);
     long c = o[i]>>16;
@@ -551,7 +555,7 @@ private void car25519() (long[] o) {
   }
 }
 
-private void sel25519() (long[] p,long[] q, int b) {
+void sel25519() (long[] p,long[] q, int b) {
   long c = ~(b-1);
   foreach (i; 0..16) {
     long t = c&(p[i]^q[i]);
@@ -560,7 +564,7 @@ private void sel25519() (long[] p,long[] q, int b) {
   }
 }
 
-private void pack25519() (ubyte[] o, const(long)[] n) {
+void pack25519() (ubyte[] o, const(long)[] n) {
   int b;
   long[16] m = void, t = void;
   t[0..16] = n[0..16];
@@ -584,33 +588,33 @@ private void pack25519() (ubyte[] o, const(long)[] n) {
   }
 }
 
-private bool neq25519() (const(long)[] a, const(long)[] b) {
+bool neq25519() (const(long)[] a, const(long)[] b) {
   ubyte[32] c = void, d = void;
   pack25519(c, a);
   pack25519(d, b);
   return crypto_verify_32(c, d);
 }
 
-private ubyte par25519() (const(long)[] a) {
+ubyte par25519() (const(long)[] a) {
   ubyte[32] d = void;
   pack25519(d, a);
   return d[0]&1;
 }
 
-private void unpack25519() (long[] o, const(ubyte)[] n) {
+void unpack25519() (long[] o, const(ubyte)[] n) {
   foreach (i; 0..16) o[i] = n[2*i]+(cast(long)n[2*i+1]<<8);
   o[15] &= 0x7fff;
 }
 
-private void A() (long[] o, const(long)[] a, const(long)[] b) {
+void A() (long[] o, const(long)[] a, const(long)[] b) {
   foreach (i; 0..16) o[i] = a[i]+b[i];
 }
 
-private void Z() (long[] o, const(long)[] a, const(long)[] b) {
+void Z() (long[] o, const(long)[] a, const(long)[] b) {
   foreach (i; 0..16) o[i] = a[i]-b[i];
 }
 
-private void M() (long[] o, const(long)[] a, const(long)[] b) {
+void M() (long[] o, const(long)[] a, const(long)[] b) {
   long[31] t; // automatically becomes 0
   foreach (i; 0..16) foreach (j; 0..16) t[i+j] += a[i]*b[j];
   foreach (i; 0..15) t[i] += 38*t[i+16];
@@ -619,11 +623,11 @@ private void M() (long[] o, const(long)[] a, const(long)[] b) {
   car25519(o);
 }
 
-private void S() (long[] o, const(long)[] a) {
+void S() (long[] o, const(long)[] a) {
   M(o, a, a);
 }
 
-private void inv25519() (long[] o, const(long)[] i) {
+void inv25519() (long[] o, const(long)[] i) {
   long[16] c = void;
   c[] = i[0..16];
   for (auto a = 253; a >= 0; --a) {
@@ -633,7 +637,7 @@ private void inv25519() (long[] o, const(long)[] i) {
   o[0..16] = c[];
 }
 
-private void pow2523() (long[] o, const(long)[] i) {
+void pow2523() (long[] o, const(long)[] i) {
   long[16] c = void;
   c[] = i[0..16];
   for(auto a = 250; a >= 0; --a) {
@@ -653,7 +657,7 @@ private void pow2523() (long[] o, const(long)[] i) {
  * Returns:
  *  resulting group element 'q' of length crypto_scalarmult_BYTES.
  */
-private void crypto_scalarmult (ubyte[] q, const(ubyte)[] n, const(ubyte)[] p) @safe nothrow @nogc
+void crypto_scalarmult (ubyte[] q, const(ubyte)[] n, const(ubyte)[] p) @safe nothrow @nogc
 in {
   assert(q.length == crypto_scalarmult_BYTES);
   assert(n.length == crypto_scalarmult_BYTES);
@@ -719,7 +723,7 @@ body {
  * Returns:
  *  resulting group element 'q' of length crypto_scalarmult_BYTES.
  */
-private void crypto_scalarmult_base() (ubyte[] q, const(ubyte)[] n)
+void crypto_scalarmult_base() (ubyte[] q, const(ubyte)[] n)
 in {
   assert(q.length == crypto_scalarmult_BYTES);
   assert(n.length == crypto_scalarmult_SCALARBYTES);
@@ -728,6 +732,7 @@ body {
   crypto_scalarmult(q, n, nine_);
 }
 
+public:
 /**
  * The crypto_box_keypair() function randomly generates a secret key and
  * a corresponding public key.
@@ -874,15 +879,16 @@ body {
   return crypto_box_open_afternm(msg, c, nonce, k);
 }
 
-private ulong R() (ulong x, int c) { return (x>>c)|(x<<(64-c)); }
-private ulong Ch() (ulong x, ulong y, ulong z) { return (x&y)^(~x&z); }
-private ulong Maj() (ulong x, ulong y, ulong z) { return (x&y)^(x&z)^(y&z); }
-private ulong Sigma0() (ulong x) { return R(x, 28)^R(x, 34)^R(x, 39); }
-private ulong Sigma1() (ulong x) { return R(x, 14)^R(x, 18)^R(x, 41); }
-private ulong sigma0() (ulong x) { return R(x, 1)^R(x, 8)^(x>>7); }
-private ulong sigma1() (ulong x) { return R(x, 19)^R(x, 61)^(x>>6); }
+private:
+ulong R() (ulong x, int c) { return (x>>c)|(x<<(64-c)); }
+ulong Ch() (ulong x, ulong y, ulong z) { return (x&y)^(~x&z); }
+ulong Maj() (ulong x, ulong y, ulong z) { return (x&y)^(x&z)^(y&z); }
+ulong Sigma0() (ulong x) { return R(x, 28)^R(x, 34)^R(x, 39); }
+ulong Sigma1() (ulong x) { return R(x, 14)^R(x, 18)^R(x, 41); }
+ulong sigma0() (ulong x) { return R(x, 1)^R(x, 8)^(x>>7); }
+ulong sigma1() (ulong x) { return R(x, 19)^R(x, 61)^(x>>6); }
 
-private immutable ulong[80] K = [
+immutable ulong[80] K = [
   0x428a2f98d728ae22UL, 0x7137449123ef65cdUL, 0xb5c0fbcfec4d3b2fUL, 0xe9b5dba58189dbbcUL,
   0x3956c25bf348b538UL, 0x59f111f1b605d019UL, 0x923f82a4af194f9bUL, 0xab1c5ed5da6d8118UL,
   0xd807aa98a3030242UL, 0x12835b0145706fbeUL, 0x243185be4ee4b28cUL, 0x550c7dc3d5ffb4e2UL,
@@ -905,7 +911,7 @@ private immutable ulong[80] K = [
   0x4cc5d4becb3e42b6UL, 0x597f299cfc657e2aUL, 0x5fcb6fab3ad6faecUL, 0x6c44198c4a475817UL
 ];
 
-private void crypto_hashblocks (ubyte[] x, const(ubyte)[] m, ulong n) @safe nothrow @nogc {
+void crypto_hashblocks (ubyte[] x, const(ubyte)[] m, ulong n) @safe nothrow @nogc {
   ulong[8] z = void, b = void, a = void;
   ulong[16] w = void;
   ulong t;
@@ -932,7 +938,7 @@ private void crypto_hashblocks (ubyte[] x, const(ubyte)[] m, ulong n) @safe noth
   foreach (i; 0..8) ts64(x[8*i..$], z[i]);
 }
 
-private immutable ubyte[64] iv = [
+immutable ubyte[64] iv = [
   0x6a, 0x09, 0xe6, 0x67, 0xf3, 0xbc, 0xc9, 0x08,
   0xbb, 0x67, 0xae, 0x85, 0x84, 0xca, 0xa7, 0x3b,
   0x3c, 0x6e, 0xf3, 0x72, 0xfe, 0x94, 0xf8, 0x2b,
@@ -954,7 +960,7 @@ private immutable ubyte[64] iv = [
  * Returns:
  *  sha512 hash
  */
-void crypto_hash() (ubyte[] output, const(ubyte)[] msg)
+public void crypto_hash() (ubyte[] output, const(ubyte)[] msg)
 in {
   assert(output.length >= crypto_hash_BYTES);
 }
@@ -1007,11 +1013,11 @@ private void add() (ref long[16][4] p, ref long[16][4] q) {
   M(p[3], e, h);
 }
 
-private void cswap() (ref long[16][4] p, ref long[16][4] q, ubyte b) {
+void cswap() (ref long[16][4] p, ref long[16][4] q, ubyte b) {
   foreach (i; 0..4) sel25519(p[i], q[i], b);
 }
 
-private void pack() (ubyte[] r, ref long[16][4] p) {
+void pack() (ubyte[] r, ref long[16][4] p) {
   long[16] tx = void, ty = void, zi = void;
   inv25519(zi, p[2]);
   M(tx, p[0], zi);
@@ -1020,7 +1026,7 @@ private void pack() (ubyte[] r, ref long[16][4] p) {
   r[31] ^= par25519(tx)<<7;
 }
 
-private void scalarmult() (ref long[16][4] p, ref long[16][4] q, const(ubyte)[] s) {
+void scalarmult() (ref long[16][4] p, ref long[16][4] q, const(ubyte)[] s) {
   p[0][] = gf0[];
   p[1][] = gf1[];
   p[2][] = gf1[];
@@ -1034,7 +1040,7 @@ private void scalarmult() (ref long[16][4] p, ref long[16][4] q, const(ubyte)[] 
   }
 }
 
-private void scalarbase() (ref long[16][4] p, const(ubyte)[] s) {
+void scalarbase() (ref long[16][4] p, const(ubyte)[] s) {
   long[16][4] q = void;
   q[0][] = X[];
   q[1][] = Y[];
@@ -1054,7 +1060,7 @@ private void scalarbase() (ref long[16][4] p, const(ubyte)[] s) {
  * Returns:
  *  pair of new keys
  */
-void crypto_sign_keypair() (ubyte[] pk, ubyte[] sk)
+public void crypto_sign_keypair() (ubyte[] pk, ubyte[] sk)
 in {
   assert(pk.length >= crypto_sign_PUBLICKEYBYTES);
   assert(sk.length >= crypto_sign_SECRETKEYBYTES);
@@ -1075,11 +1081,11 @@ body {
   sk[32..64] = pk[0..32];
 }
 
-private immutable ulong[32] L = [
+immutable ulong[32] L = [
   0xed,0xd3,0xf5,0x5c,0x1a,0x63,0x12,0x58,0xd6,0x9c,0xf7,0xa2,0xde,0xf9,0xde,0x14,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x10
 ];
 
-private void modL() (ubyte[] r, long[] x) {
+void modL() (ubyte[] r, long[] x) {
   long carry;
   for (auto i = 63; i >= 32; --i) {
     int j;
@@ -1105,13 +1111,15 @@ private void modL() (ubyte[] r, long[] x) {
   }
 }
 
-private void reduce() (ubyte[] r) {
+void reduce() (ubyte[] r) {
   long[64] x = void;
   foreach (i; 0..64) x[i] = cast(ulong)r[i];
   r[0..64] = 0;
   modL(r, x);
 }
 
+
+public:
 /**
  * The crypto_sign() function signs a message 'msg' using the sender's secret key 'sk'.
  * The crypto_sign() function returns the resulting signed message.

@@ -1298,6 +1298,7 @@ ubyte[] crypto_sign_open() (const(ubyte)[] sm, const(ubyte)[] pk) {
 }
 
 
+version(tweetnacl_unittest)
 unittest {
   import std.exception;
   import std.random;
@@ -2506,8 +2507,8 @@ unittest {
   }
   stream4();
 }
-version(unittest) {
-  version(unittest_main) {
-    void main () {}
-  }
-}
+
+version(unittest)
+version(tweetnacl_unittest)
+version(unittest_main)
+void main () {}

@@ -14,20 +14,18 @@
 //    attitude. thank you.
 module tweetNaCl;
 
-// define tweetnacl_enable_inlining to speed up tweetNaCl on GDC
+// define tweetnacl_disable_inlining to speed up tweetNaCl on GDC
 version(GNU) {
-  version(tweetnacl_enable_inlining) version=tweetnacl_enable_inlining_on_;
-  else version=tweetnacl_enable_inlining_off_;
 } else {
-  version=tweetnacl_enable_inlining_off_;
+  version=tweetnacl_disable_inlining;
 }
 
-version(tweetnacl_enable_inlining_on_) {
+version(tweetnacl_disable_inlining) {
+  // hackery for non-gcc compilers or no inlining
+  private enum gcc_inline;
+} else {
   static import gcc.attribute;
   private enum gcc_inline = gcc.attribute.attribute("forceinline");
-} else {
-  // hackery for non-gcc compilers
-  private enum gcc_inline;
 }
 
 
@@ -88,13 +86,13 @@ enum {
 void function (ubyte[] dest, size_t len) randombytes = null;
 
 
-private immutable ubyte[16] _0 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-private immutable ubyte[32] _9 = [9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+private immutable ubyte[16] zero_ = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+private immutable ubyte[32] nine_ = [9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
 
 private immutable long[16]
   gf0 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
   gf1 = [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-  _121665 = [0xDB41,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  xx121665 = [0xDB41,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
   D = [0x78a3, 0x1359, 0x4dca, 0x75eb, 0xd8ab, 0x4141, 0x0a4d, 0x0070, 0xe898, 0x7779, 0x4079, 0x8cc7, 0xfe73, 0x2b6f, 0x6cee, 0x5203],
   D2 =[0xf159, 0x26b2, 0x9b94, 0xebd6, 0xb156, 0x8283, 0x149a, 0x00e0, 0xd130, 0xeef3, 0x80f2, 0x198e, 0xfce7, 0x56df, 0xd9dc, 0x2406],
   X = [0xd51a, 0x8f25, 0x2d60, 0xc956, 0xa7b2, 0x9525, 0xc760, 0x692c, 0xdc5c, 0xfdd6, 0xe231, 0xc0a4, 0x53fe, 0xcd6e, 0x36d3, 0x2169],
@@ -293,7 +291,7 @@ body {
   if (!b) return;
   z[0..8] = nonce[0..8];
   while (b >= 64) {
-    crypto_core_salsa20(x, z, key, sigma);
+    crypto_core_salsa20(x[], z[], key, sigma[]);
     if (msg !is null) {
       foreach (v; x) output[cpos++] = msg[mpos++]^v;
     } else {
@@ -309,7 +307,7 @@ body {
     b -= 64;
   }
   if (b) {
-    crypto_core_salsa20(x, z, key, sigma);
+    crypto_core_salsa20(x[], z[], key, sigma[]);
     if (msg !is null) {
       foreach (i; 0..b) output[cpos++] = msg[mpos++]^x[i];
     } else {
@@ -359,8 +357,8 @@ in {
 }
 body {
   ubyte[32] s = void;
-  crypto_core_hsalsa20(s, nonce, key, sigma);
-  crypto_stream_salsa20(c, nonce[16..$], s);
+  crypto_core_hsalsa20(s[], nonce, key, sigma[]);
+  crypto_stream_salsa20(c, nonce[16..$], s[]);
 }
 
 /**
@@ -384,7 +382,7 @@ in {
 }
 body {
   ubyte[32] s = void;
-  crypto_core_hsalsa20(s, nonce, key, sigma);
+  crypto_core_hsalsa20(s[], nonce, key, sigma[]);
   crypto_stream_salsa20_xor(c, msg, nonce[16..$], s);
 }
 
@@ -705,7 +703,7 @@ body {
     Z(a, a, c);
     S(b, a);
     Z(c, d, f);
-    M(a, c, _121665);
+    M(a, c, xx121665);
     A(a, a, d);
     M(c, c, a);
     M(a, d, f);
@@ -741,7 +739,7 @@ in {
   assert(n.length == crypto_scalarmult_SCALARBYTES);
 }
 body {
-  crypto_scalarmult(q, n, _9);
+  crypto_scalarmult(q, n, nine_);
 }
 
 /**
@@ -786,7 +784,7 @@ in {
 body {
   ubyte[32] s = void;
   crypto_scalarmult(s, sk, pk);
-  crypto_core_hsalsa20(skey, _0, s, sigma);
+  crypto_core_hsalsa20(skey, zero_[], s[], sigma[]);
 }
 
 /**

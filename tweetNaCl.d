@@ -1438,7 +1438,7 @@ unittest {
       }
 
       ubyte front () {
-        if (state == 0) return cast(ubyte)r.front();
+        if (state == 0) return cast(ubyte)r.front;
         assert(state != 5);
         //writefln("%x", current);
         return current;

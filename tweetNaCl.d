@@ -382,7 +382,7 @@ in {
   assert(key.length == crypto_stream_KEYBYTES);
 }
 body {
-  ubyte s[32] = void;
+  ubyte[32] s = void;
   crypto_core_hsalsa20(s, nonce, key, sigma);
   crypto_stream_salsa20_xor(c, msg, nonce[16..$], s);
 }
@@ -494,7 +494,7 @@ in {
   assert(key.length >= crypto_onetimeauth_KEYBYTES);
 }
 body {
-  ubyte x[16] = void;
+  ubyte[16] x = void;
   crypto_onetimeauth(x, msg, key);
   return crypto_verify_16(h, x);
 }
@@ -547,7 +547,7 @@ in {
   assert(nonce.length >= crypto_secretbox_NONCEBYTES);
 }
 body {
-  ubyte x[32] = void;
+  ubyte[32] x = void;
   if (output is null || output.length < 32) return false;
   crypto_stream(x, nonce, key);
   if (!crypto_onetimeauth_verify(c[16..$], c[32../*$*/32+(output.length-32)], x)) return false;
@@ -607,7 +607,7 @@ private @gcc_inline bool neq25519() (const(long)[] a, const(long)[] b) @safe not
 }
 
 private @gcc_inline ubyte par25519() (const(long)[] a) @safe nothrow {
-  ubyte d[32] = void;
+  ubyte[32] d = void;
   pack25519(d, a);
   return d[0]&1;
 }
@@ -783,7 +783,7 @@ in {
   assert(skey.length >= crypto_box_BEFORENMBYTES);
 }
 body {
-  ubyte s[32] = void;
+  ubyte[32] s = void;
   crypto_scalarmult(s, sk, pk);
   crypto_core_hsalsa20(skey, _0, s, sigma);
 }
@@ -856,7 +856,7 @@ in {
   assert(sk.length >= crypto_box_SECRETKEYBYTES);
 }
 body {
-  ubyte k[32] = void;
+  ubyte[32] k = void;
   crypto_box_beforenm(k, pk, sk);
   return crypto_box_afternm(c, msg, nonce, k);
 }
@@ -884,7 +884,7 @@ in {
   assert(sk.length >= crypto_box_SECRETKEYBYTES);
 }
 body {
-  ubyte k[32] = void;
+  ubyte[32] k = void;
   crypto_box_beforenm(k, pk, sk);
   return crypto_box_open_afternm(msg, c, nonce, k);
 }
@@ -1075,7 +1075,7 @@ in {
   assert(sk.length >= crypto_sign_SECRETKEYBYTES);
 }
 body {
-  ubyte d[64] = void;
+  ubyte[64] d = void;
   long[16][4] p = void;
 
   randombytes(sk, 32);
@@ -1680,7 +1680,7 @@ unittest {
     ,0xe3,0x55,0xa5
     ] ;
 
-    ubyte m[163];
+    ubyte[163] m;
 
     static immutable ubyte[] res = [
      0xbe,0x07,0x5f,0xc5,0x3c,0x81,0xf2,0xd5
@@ -1838,7 +1838,7 @@ unittest {
 
     static ubyte[16] input = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ;
 
-    static ubyte output[64*256*256];
+    static ubyte[64*256*256] output;
 
     static ubyte[64] h;
 
@@ -1913,7 +1913,7 @@ unittest {
     , 50, 45, 98,121,116,101, 32,107
     ] ;
 
-    ubyte output[32];
+    ubyte[32] output;
 
     static immutable ubyte[32] res = [
      0xbc,0x1b,0x30,0xfc,0x07,0x2c,0xc1,0x40
@@ -1946,7 +1946,7 @@ unittest {
     , 50, 45, 98,121,116,101, 32,107
     ] ;
 
-    ubyte output[64];
+    ubyte[64] output;
 
     static immutable ubyte[32] res = [
      0xbc,0x1b,0x30,0xfc,0x07,0x2c,0xc1,0x40
@@ -1985,7 +1985,7 @@ unittest {
 
   void hash () {
     writeln("hash");
-    static immutable ubyte x[8] = ['t','e','s','t','i','n','g','\n'];
+    static immutable ubyte[8] x = ['t','e','s','t','i','n','g','\n'];
     static ubyte[crypto_hash_BYTES] h;
     static immutable ubyte[crypto_hash_BYTES] res = [0x24,0xf9,0x50,0xaa,0xc7,0xb9,0xea,0x9b,0x3c,0xb7,0x28,0x22,0x8a,0x0c,0x82,0xb6,0x7c,0x39,0xe9,0x6b,0x4b,0x34,0x47,0x98,0x87,0x0d,0x5d,0xae,0xe9,0x3e,0x3a,0xe5,0x93,0x1b,0xaa,0xe8,0xc7,0xca,0xcf,0xea,0x4b,0x62,0x94,0x52,0xc3,0x80,0x26,0xa8,0x1d,0x13,0x8b,0xc7,0xaa,0xd1,0xaf,0x3e,0xf7,0xbf,0xd5,0xec,0x64,0x6d,0x6c,0x28];
     crypto_hash(h,x);
@@ -1996,14 +1996,14 @@ unittest {
 
   void onetimeauth () {
     writeln("onetimeauth");
-    static immutable ubyte rs[32] = [
+    static immutable ubyte[32] rs = [
      0xee,0xa6,0xa7,0x25,0x1c,0x1e,0x72,0x91
     ,0x6d,0x11,0xc2,0xcb,0x21,0x4d,0x3c,0x25
     ,0x25,0x39,0x12,0x1d,0x8e,0x23,0x4e,0x65
     ,0x2d,0x65,0x1f,0xa4,0xc8,0xcf,0xf8,0x80
     ] ;
 
-    static immutable ubyte c[131] = [
+    static immutable ubyte[131] c = [
      0x8e,0x99,0x3b,0x9f,0x48,0x68,0x12,0x73
     ,0xc2,0x96,0x50,0xba,0x32,0xfc,0x76,0xce
     ,0x48,0x33,0x2e,0xa7,0x16,0x4d,0x96,0xa4
@@ -2023,7 +2023,7 @@ unittest {
     ,0xe3,0x55,0xa5
     ] ;
 
-    ubyte a[16];
+    ubyte[16] a;
 
     static immutable ubyte[16] res = [0xf3,0xff,0xc7,0x70,0x3f,0x94,0x00,0xe5,0x2a,0x7d,0xfb,0x4b,0x3d,0x33,0x05,0xd9];
 
@@ -2260,7 +2260,7 @@ unittest {
     ,0xe3,0x55,0xa5
     ];
 
-    ubyte c[163];
+    ubyte[163] c;
     crypto_secretbox(c,m,nonce,firstkey);
     for (auto i = 16; i < 163; ++i) assert(c[i] == res[i-16]);
   }
@@ -2326,7 +2326,7 @@ unittest {
     ,0x5e,0x07,0x05
     ];
 
-    ubyte m[163];
+    ubyte[163] m;
 
     assert(crypto_secretbox_open(m,c,nonce,firstkey));
     for (auto i = 32; i < 163; ++i) assert(m[i] == res[i-32]);
@@ -2433,7 +2433,7 @@ unittest {
     ,0x82,0x19,0xe0,0x03,0x6b,0x7a,0x0b,0x37
     ] ;
 
-    ubyte rs[32];
+    ubyte[32] rs;
 
     static immutable ubyte[32] res = [
      0xee,0xa6,0xa7,0x25,0x1c,0x1e,0x72,0x91
@@ -2486,7 +2486,7 @@ unittest {
     ,0x5e,0x07,0x05
     ] ;
 
-    ubyte c[163];
+    ubyte[163] c;
 
     static immutable ubyte[] res = [
      0x8e,0x99,0x3b,0x9f,0x48,0x68,0x12,0x73

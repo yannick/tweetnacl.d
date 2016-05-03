@@ -1,0 +1,17 @@
+{
+	"name": "tweetnacl",
+	"authors": [
+		"Ketmar"
+	],
+	"description": "D port of tweetnacl",
+	"copyright": "Copyright © 2016 Ketmar",
+	"license": "WTFPL",
+
+  "configurations": 
+  [
+    {
+      "name": "fulltest",
+      "versions": ["unittest_full"],
+    }
+  ]
+}
